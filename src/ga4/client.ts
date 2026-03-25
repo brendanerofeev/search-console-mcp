@@ -94,7 +94,7 @@ export async function getGA4Client(propertyId?: string, accountId?: string): Pro
     // Determine Property ID to use
     // If account has a specific property ID, use it.
     // If not, and propertyId argument was passed, use that (assuming account has access).
-    const targetPropertyId = account.ga4PropertyId || propertyId;
+    const targetPropertyId = propertyId || account.ga4PropertyId;
 
     if (!targetPropertyId) {
         throw new Error(`No Property ID found for account ${account.alias}.`);
