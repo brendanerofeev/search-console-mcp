@@ -6,12 +6,12 @@
     "url": "https://github.com/saurabhsharma2u/search-console-mcp",
     "source": "github"
   },
-  "version": "1.13.4",
+  "version": "1.13.5",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "search-console-mcp",
-      "version": "1.13.2",
+      "version": "1.13.5",
       "transport": {
         "type": "stdio"
       },
