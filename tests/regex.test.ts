@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { safeTest, safeTestBatch } from '../src/common/utils/regex.js';
 
 describe('Regex Utils', () => {
@@ -36,6 +36,25 @@ describe('Regex Utils', () => {
 
             expect(results).toEqual([false, false]);
             expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Batch regex evaluation failed'));
+        });
+
+        it('should block nested quantifiers for safety', () => {
+            const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+            expect(safeTest('(a+)+$', '', 'aaaa')).toBe(false);
+            expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Regex rejected for safety'));
+        });
+
+        it('should block open-ended wildcard for safety', () => {
+            const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+            expect(safeTest('.*', '', 'anything')).toBe(false);
+            expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Regex rejected for safety'));
+        });
+
+        it('should block unsafe batch patterns and return false for all', () => {
+            const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+            const results = safeTestBatch('(a+)+$', '', ['aaaa', 'bbbb']);
+            expect(results).toEqual([false, false]);
+            expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Batch regex rejected for safety'));
         });
     });
 });
