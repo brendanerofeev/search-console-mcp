@@ -1,6 +1,6 @@
 {
   "name": "search-console-mcp",
-  "version": "1.13.5",
+  "version": "1.14.0",
   "mcpName": "io.github.saurabhsharma2u/search-console-mcp",
   "description": "MCP server for Google Search Console, Bing Webmaster Tools, and Google Analytics 4",
   "type": "module",
