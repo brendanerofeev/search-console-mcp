@@ -105,6 +105,105 @@ export async function getSearchConsoleClient(siteUrl?: string, accountId?: strin
   throw new Error(`Authentication required for ${siteUrl || 'Google Search Console'}. Run setup to add an account.`);
 }
 
+const INDEXING_SCOPES = [
+  'https://www.googleapis.com/auth/indexing',
+  'https://www.googleapis.com/auth/userinfo.email'
+];
+
+let cachedIndexingClientMap: Record<string, any> = {};
+
+/**
+ * Get an authenticated client for the Google Indexing API.
+ * Uses the `indexing` scope which is separate from the read-only `webmasters.readonly` scope.
+ *
+ * @param siteUrl - The site URL to resolve the account for.
+ * @param accountId - Optional specific account ID to use.
+ * @returns An authenticated OAuth2 client with the indexing scope.
+ */
+export async function getIndexingClient(siteUrl?: string, accountId?: string): Promise<any> {
+  // 1. Resolve Account
+  let account: AccountConfig;
+  if (accountId) {
+    const config = await loadConfig();
+    account = config.accounts[accountId];
+    if (!account) throw new Error(`Account ${accountId} not found.`);
+  } else if (siteUrl) {
+    account = await resolveAccount(siteUrl, 'google');
+  } else {
+    account = await resolveAccount('', 'google');
+  }
+
+  const cacheKey = `indexing_${account.id}`;
+  if (cachedIndexingClientMap[cacheKey]) {
+    logger.debug(`Using cached indexing client for account: ${account.alias} (${account.id})`);
+    return cachedIndexingClientMap[cacheKey];
+  }
+
+  logger.debug(`Initializing Indexing API client for ${account.alias} (ID: ${account.id})`);
+
+  // 2. Load Tokens
+  const tokens = await loadTokensForAccount(account);
+
+  if (tokens) {
+    try {
+      const oauth2Client = new google.auth.OAuth2(
+        process.env.GOOGLE_CLIENT_ID || DEFAULT_CLIENT_ID,
+        process.env.GOOGLE_CLIENT_SECRET || DEFAULT_CLIENT_SECRET
+      );
+      oauth2Client.setCredentials(tokens);
+
+      // Check for expiry
+      if (tokens.expiry_date && tokens.expiry_date <= Date.now()) {
+        logger.debug(`Tokens expired for ${account.alias}, refreshing...`);
+        const { credentials } = await oauth2Client.refreshAccessToken();
+        await saveTokensForAccount(account, credentials);
+        oauth2Client.setCredentials(credentials);
+      }
+
+      logger.debug(`Indexing client initialized with OAuth2 for ${account.alias}`);
+      cachedIndexingClientMap[cacheKey] = oauth2Client;
+      return oauth2Client;
+    } catch (error) {
+      logger.error(`Failed to use tokens for indexing client ${account.alias}:`, (error as Error).message);
+    }
+  }
+
+  // 3. Support Service Account Path
+  if (account.serviceAccountPath) {
+    const auth = new google.auth.GoogleAuth({
+      keyFilename: account.serviceAccountPath,
+      scopes: INDEXING_SCOPES
+    });
+    const client = await auth.getClient();
+    cachedIndexingClientMap[cacheKey] = client;
+    logger.debug(`Indexing client initialized with Service Account for ${account.alias}`);
+    return client;
+  }
+
+  // 4. Fallback to env-based Service Account
+  if (!accountId) {
+    if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+      const auth = new google.auth.GoogleAuth({
+        scopes: INDEXING_SCOPES
+      });
+      return auth.getClient();
+    }
+
+    if (process.env.GOOGLE_CLIENT_EMAIL && process.env.GOOGLE_PRIVATE_KEY) {
+      const jwtClient = new google.auth.JWT({
+        email: process.env.GOOGLE_CLIENT_EMAIL,
+        key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+        scopes: INDEXING_SCOPES
+      });
+      await jwtClient.authorize();
+      cachedIndexingClientMap[cacheKey] = jwtClient;
+      return jwtClient;
+    }
+  }
+
+  throw new Error(`Authentication required for Google Indexing API. Ensure your account has the 'indexing' scope.`);
+}
+
 export async function getUserEmail(tokens: any): Promise<string> {
   const oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID || DEFAULT_CLIENT_ID,

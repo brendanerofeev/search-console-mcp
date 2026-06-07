@@ -212,7 +212,7 @@ describe('Setup Full', () => {
 
         it('should handle Google Login flow', async () => {
             process.argv = ['node', 'setup.ts'];
-            mockAnswers = ['1', '1', '1', 'my-google', 'n'];
+            mockAnswers = ['1', '1', 'n', '1', 'my-google', 'n'];
 
             vi.mocked(googleClient.startLocalFlow).mockResolvedValue({ access_token: 'token' });
             vi.mocked(googleClient.getUserEmail).mockResolvedValue('user@test.com');
@@ -227,6 +227,37 @@ describe('Setup Full', () => {
                 engine: 'google',
                 alias: 'my-google'
             }));
+            // Verify default scopes were used
+            expect(googleClient.startLocalFlow).toHaveBeenCalledWith(
+                expect.any(String),
+                expect.any(String),
+                expect.not.arrayContaining(['https://www.googleapis.com/auth/indexing'])
+            );
+        });
+
+        it('should handle Google Login flow with Indexing scope', async () => {
+            process.argv = ['node', 'setup.ts'];
+            mockAnswers = ['1', '1', 'y', '1', 'my-google-indexing', 'n'];
+
+            vi.mocked(googleClient.startLocalFlow).mockResolvedValue({ access_token: 'token' });
+            vi.mocked(googleClient.getUserEmail).mockResolvedValue('user@test.com');
+
+            mockGClient.sites.list.mockResolvedValue({
+                data: { siteEntry: [{ siteUrl: 'https://site.com' }] }
+            });
+
+            await setupModule.main();
+
+            expect(configModule.updateAccount).toHaveBeenCalledWith(expect.objectContaining({
+                engine: 'google',
+                alias: 'my-google-indexing'
+            }));
+            // Verify indexing scope was passed
+            expect(googleClient.startLocalFlow).toHaveBeenCalledWith(
+                expect.any(String),
+                expect.any(String),
+                expect.arrayContaining(['https://www.googleapis.com/auth/indexing'])
+            );
         });
 
         it('should handle Google Service Account flow', async () => {

@@ -22,7 +22,7 @@ Each filter has three properties:
 | \`equals\` | Exact match | \`"expression": "https://example.com/page"\` |
 | \`contains\` | Substring match | \`"expression": "coffee"\` |
 | \`notContains\` | Exclude substring | \`"expression": "spam"\` |
-| \`includingRegex\` | Regex match (RE2 syntax) | \`"expression": "coffee|tea"\` |
+| \`includingRegex\` | Regex match | \`"expression": "coffee|tea"\` |
 | \`excludingRegex\` | Exclude regex match | \`"expression": "test.*page"\` |
 
 ## Filter Examples
@@ -106,7 +106,7 @@ Match queries about coffee OR tea:
 
 1. **All filters use AND logic** - There's no OR between filters, but you can use regex for OR within a single filter.
 2. **Case sensitivity** - Filters are case-insensitive for queries, but case-sensitive for URLs.
-3. **Regex syntax** - Uses RE2 regex syntax (similar to Python/Go regex).
+3. **Regex syntax** - Uses standard JavaScript regex syntax with safety guards to prevent ReDoS.
 4. **URL filters** - Must match the canonical URL as reported by GSC.
 `;
 

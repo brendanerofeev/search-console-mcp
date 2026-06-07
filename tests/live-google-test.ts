@@ -6,6 +6,8 @@ import { listSitemaps } from '../src/google/tools/sitemaps.js';
 import { healthCheck } from '../src/google/tools/sites-health.js';
 import { findLowHangingFruit, generateRecommendations } from '../src/google/tools/seo-insights.js';
 import { getTimeSeriesInsights } from '../src/google/tools/advanced-analytics.js';
+import { publishNotification, getNotificationStatus } from '../src/google/tools/indexing.js';
+import { resolveAccount } from '../src/common/auth/resolver.js';
 
 if (process.env.CI) {
     console.log('Skipping live test in CI environment.');
@@ -24,10 +26,26 @@ async function runLiveTest() {
             return;
         }
 
-        // Try to find a site with data if there are multiple
-        let siteUrl = sites[0].siteUrl!;
+        // Try to find a site that is authorized (not restricted by boundary filters)
+        let siteUrl: string | undefined;
+        for (const site of sites) {
+            if (site.siteUrl) {
+                try {
+                    await resolveAccount(site.siteUrl, 'google');
+                    siteUrl = site.siteUrl;
+                    break;
+                } catch (e) {
+                    // Site is filtered out by account boundary config, try next one
+                }
+            }
+        }
 
-        console.log(`✅ Found ${sites.length} sites. Testing with: ${siteUrl}\n`);
+        if (!siteUrl) {
+            console.error('❌ No authorized sites found. Cannot proceed with further tests.');
+            return;
+        }
+
+        console.log(`✅ Found ${sites.length} sites in account. Testing with authorized site: ${siteUrl}\n`);
 
         // 2. Health Check
         console.log('Step 2: Performing Health Check...');
@@ -86,6 +104,21 @@ async function runLiveTest() {
         console.log('Step 12: Listing Sitemaps...');
         const sitemaps = await listSitemaps(siteUrl);
         console.log(`✅ Found ${sitemaps.length} sitemaps.\n`);
+
+        // 8. Google Indexing API
+        console.log('Step 13: Testing Google Indexing API...');
+        try {
+            const targetUrl = (siteUrl.startsWith('sc-domain:') ? `https://${siteUrl.split(':')[1]}/` : siteUrl) + 'jobs/test-job-posting';
+            console.log(`Submitting URL update notification for: ${targetUrl}`);
+            const publishResult = await publishNotification(siteUrl, targetUrl, 'URL_UPDATED');
+            console.log('✅ Indexing API Notification Published:', JSON.stringify(publishResult, null, 2));
+
+            console.log('Fetching status metadata...');
+            const statusResult = await getNotificationStatus(siteUrl, targetUrl);
+            console.log('✅ Indexing API Status Metadata:', JSON.stringify(statusResult, null, 2));
+        } catch (e) {
+            console.warn('⚠️ Step 13 Google Indexing API test skipped or failed (likely due to missing indexing API enablement, project scope mismatch, or permission limits):', (e as Error).message);
+        }
 
         console.log('--- All Live Google API Tests Completed! ---');
     } catch (error) {

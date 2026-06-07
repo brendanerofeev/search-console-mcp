@@ -244,8 +244,26 @@ export async function login() {
     const clientId = DEFAULT_CLIENT_ID;
     const clientSecret = DEFAULT_CLIENT_SECRET;
 
+    console.log(`\n${colors.bold}💡 Google Indexing API Rules:${colors.reset}`);
+    console.log(`   Officially, the Google Indexing API is only supported for pages containing`);
+    console.log(`   ${colors.cyan}JobPosting${colors.reset} or ${colors.cyan}BroadcastEvent${colors.reset} structured data. Using it for other content`);
+    console.log(`   types may result in submissions being ignored by Google.`);
+
+    const authorizeIndexing = await ask('\nWould you like to also authorize Google Indexing API write scope? (y/N): ');
+    const useIndexing = authorizeIndexing.toLowerCase().startsWith('y');
+    const scopes = useIndexing
+        ? [
+            'https://www.googleapis.com/auth/webmasters.readonly',
+            'https://www.googleapis.com/auth/indexing',
+            'https://www.googleapis.com/auth/userinfo.email'
+          ]
+        : [
+            'https://www.googleapis.com/auth/webmasters.readonly',
+            'https://www.googleapis.com/auth/userinfo.email'
+          ];
+
     try {
-        const tokens = await startLocalFlow(clientId, clientSecret);
+        const tokens = await startLocalFlow(clientId, clientSecret, scopes);
 
         printInfo('Fetching account information...');
         const email = await getUserEmail(tokens);
