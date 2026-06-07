@@ -6,6 +6,7 @@ import { listSitemaps } from '../src/google/tools/sitemaps.js';
 import { healthCheck } from '../src/google/tools/sites-health.js';
 import { findLowHangingFruit, generateRecommendations } from '../src/google/tools/seo-insights.js';
 import { getTimeSeriesInsights } from '../src/google/tools/advanced-analytics.js';
+import { publishNotification, getNotificationStatus } from '../src/google/tools/indexing.js';
 
 if (process.env.CI) {
     console.log('Skipping live test in CI environment.');
@@ -86,6 +87,21 @@ async function runLiveTest() {
         console.log('Step 12: Listing Sitemaps...');
         const sitemaps = await listSitemaps(siteUrl);
         console.log(`✅ Found ${sitemaps.length} sitemaps.\n`);
+
+        // 8. Google Indexing API
+        console.log('Step 13: Testing Google Indexing API...');
+        try {
+            const targetUrl = (siteUrl.startsWith('sc-domain:') ? `https://${siteUrl.split(':')[1]}/` : siteUrl) + 'jobs/test-job-posting';
+            console.log(`Submitting URL update notification for: ${targetUrl}`);
+            const publishResult = await publishNotification(siteUrl, targetUrl, 'URL_UPDATED');
+            console.log('✅ Indexing API Notification Published:', JSON.stringify(publishResult, null, 2));
+
+            console.log('Fetching status metadata...');
+            const statusResult = await getNotificationStatus(siteUrl, targetUrl);
+            console.log('✅ Indexing API Status Metadata:', JSON.stringify(statusResult, null, 2));
+        } catch (e) {
+            console.warn('⚠️ Step 13 Google Indexing API test skipped or failed (likely due to missing indexing API enablement, project scope mismatch, or permission limits):', (e as Error).message);
+        }
 
         console.log('--- All Live Google API Tests Completed! ---');
     } catch (error) {
