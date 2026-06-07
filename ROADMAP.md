@@ -160,6 +160,18 @@ This document outlines the planned features and improvements for this project.
 - **Enhanced Bing Analytics**:
   - Added `startDate`, `endDate`, and `limit` parameters to `bing_analytics_query`.
 
+### v1.14.0 - Indexing API Integration
+
+- **Google Indexing API Support**:
+  - `indexing_submit_url` - Submit URL updates to Google (via Indexing API v3) or Bing (via URL Submission API).
+  - `indexing_remove_url` - Notify Google of page deletion.
+  - `indexing_status` - Retrieve URL notification metadata.
+  - `indexing_batch_submit` - Batch submission with concurrency control.
+- **Isolated Auth Scopes**:
+  - Added dedicated indexing client factory with `https://www.googleapis.com/auth/indexing` scope to ensure principle of least privilege.
+- **MCP Resource Documentation**:
+  - Added `docs://indexing` resource reference for user guidelines and best practices.
+
 ---
 
 ## 🚧 In Progress

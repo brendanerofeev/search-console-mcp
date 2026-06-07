@@ -214,6 +214,15 @@ These are low-level tools designed to be used by other AI agents to build comple
 | `pagespeed_analyze` | Lighthouse scores & Core Web Vitals. |
 | `schema_validate` | Validate Structured Data (JSON-LD). |
 
+### URL Indexing (Google & Bing)
+| Tool | Description |
+|------|-------------|
+| `indexing_submit_url` | **[NEW]** Submit a URL for indexing (supports Google Indexing API and Bing URL Submission API). |
+| `indexing_remove_url` | **[NEW]** Notify Google that a URL has been removed (Google only). |
+| `indexing_status` | **[NEW]** Check notification status for a submitted URL (Google only). |
+| `indexing_batch_submit` | **[NEW]** Batch submit multiple URLs for indexing (concurrency-controlled). |
+| `bing_url_submission_quota` | Check remaining daily/monthly URL submission quota for Bing. |
+
 ### Bing Webmaster Tools
 | Tool | Description |
 |------|-------------|
