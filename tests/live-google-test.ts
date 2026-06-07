@@ -7,6 +7,7 @@ import { healthCheck } from '../src/google/tools/sites-health.js';
 import { findLowHangingFruit, generateRecommendations } from '../src/google/tools/seo-insights.js';
 import { getTimeSeriesInsights } from '../src/google/tools/advanced-analytics.js';
 import { publishNotification, getNotificationStatus } from '../src/google/tools/indexing.js';
+import { resolveAccount } from '../src/common/auth/resolver.js';
 
 if (process.env.CI) {
     console.log('Skipping live test in CI environment.');
@@ -25,10 +26,26 @@ async function runLiveTest() {
             return;
         }
 
-        // Try to find a site with data if there are multiple
-        let siteUrl = sites[0].siteUrl!;
+        // Try to find a site that is authorized (not restricted by boundary filters)
+        let siteUrl: string | undefined;
+        for (const site of sites) {
+            if (site.siteUrl) {
+                try {
+                    await resolveAccount(site.siteUrl, 'google');
+                    siteUrl = site.siteUrl;
+                    break;
+                } catch (e) {
+                    // Site is filtered out by account boundary config, try next one
+                }
+            }
+        }
 
-        console.log(`✅ Found ${sites.length} sites. Testing with: ${siteUrl}\n`);
+        if (!siteUrl) {
+            console.error('❌ No authorized sites found. Cannot proceed with further tests.');
+            return;
+        }
+
+        console.log(`✅ Found ${sites.length} sites in account. Testing with authorized site: ${siteUrl}\n`);
 
         // 2. Health Check
         console.log('Step 2: Performing Health Check...');
