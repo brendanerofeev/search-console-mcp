@@ -7,6 +7,7 @@ import * as sites from "./google/tools/sites.js";
 import * as sitemaps from "./google/tools/sitemaps.js";
 import * as analytics from "./google/tools/analytics.js";
 import * as inspection from "./google/tools/inspection.js";
+import * as googleIndexing from "./google/tools/indexing.js";
 import * as pagespeed from "./google/tools/pagespeed.js";
 import * as seoInsights from "./google/tools/seo-insights.js";
 import * as seoPrimitives from "./common/tools/seo-primitives.js";
@@ -1572,6 +1573,90 @@ server.tool(
   }
 );
 
+// --- Indexing API Tools ---
+
+server.tool(
+  "indexing_submit_url",
+  "Submit a URL for indexing (notify Google or Bing that a page was updated). Google Indexing API is officially for JobPosting/BroadcastEvent pages.",
+  {
+    siteUrl: z.string().describe("The property URL as registered in Search Console"),
+    url: z.string().describe("The specific URL to submit for indexing"),
+    engine: z.enum(["google", "bing"]).optional().describe("The search engine (default: google)")
+  },
+  async ({ siteUrl, url, engine = "google" }) => {
+    try {
+      const result = engine === "google"
+        ? await googleIndexing.publishNotification(siteUrl, url, 'URL_UPDATED')
+        : await bingUrlSubmission.submitUrl(siteUrl, url);
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
+      };
+    } catch (error) {
+      return formatError(error);
+    }
+  }
+);
+
+server.tool(
+  "indexing_remove_url",
+  "Notify Google that a URL has been removed (e.g., expired job posting). Google only.",
+  {
+    siteUrl: z.string().describe("The property URL as registered in Search Console"),
+    url: z.string().describe("The URL that was removed")
+  },
+  async ({ siteUrl, url }) => {
+    try {
+      const result = await googleIndexing.publishNotification(siteUrl, url, 'URL_DELETED');
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
+      };
+    } catch (error) {
+      return formatError(error);
+    }
+  }
+);
+
+server.tool(
+  "indexing_status",
+  "Check the notification status for a URL previously submitted to the Google Indexing API",
+  {
+    siteUrl: z.string().describe("The property URL as registered in Search Console"),
+    url: z.string().describe("The URL to check notification status for")
+  },
+  async ({ siteUrl, url }) => {
+    try {
+      const result = await googleIndexing.getNotificationStatus(siteUrl, url);
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
+      };
+    } catch (error) {
+      return formatError(error);
+    }
+  }
+);
+
+server.tool(
+  "indexing_batch_submit",
+  "Submit multiple URLs for indexing in batch. Google: max 200 (daily quota), Bing: max 500.",
+  {
+    siteUrl: z.string().describe("The property URL as registered in Search Console"),
+    urls: z.array(z.string()).describe("List of URLs to submit for indexing"),
+    engine: z.enum(["google", "bing"]).optional().describe("The search engine (default: google)")
+  },
+  async ({ siteUrl, urls, engine = "google" }) => {
+    try {
+      const result = engine === "google"
+        ? await googleIndexing.batchPublishNotifications(siteUrl, urls, 'URL_UPDATED')
+        : await bingUrlSubmission.submitUrlBatch(siteUrl, urls);
+      return {
+        content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
+      };
+    } catch (error) {
+      return formatError(error);
+    }
+  }
+);
+
 server.tool(
   "bing_sites_health",
   "Run a comprehensive health check on one or all verified Bing sites",
@@ -2164,7 +2249,7 @@ server.resource(
 );
 
 // Documentation Resources
-import { dimensionsDocs, filtersDocs, searchTypesDocs, patternsDocs, algorithmUpdatesDocs } from "./google/docs/index.js";
+import { dimensionsDocs, filtersDocs, searchTypesDocs, patternsDocs, algorithmUpdatesDocs, indexingDocs } from "./google/docs/index.js";
 
 server.resource(
   "docs-dimensions",
@@ -2306,6 +2391,18 @@ server.resource(
     contents: [{
       uri: uri.href,
       text: bingAlgorithmUpdatesDocs,
+      mimeType: "text/markdown"
+    }]
+  })
+);
+
+server.resource(
+  "docs-indexing",
+  "docs://indexing",
+  async (uri) => ({
+    contents: [{
+      uri: uri.href,
+      text: indexingDocs,
       mimeType: "text/markdown"
     }]
   })
