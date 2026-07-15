@@ -40,14 +40,15 @@ Add this to your `claude_desktop_config.json`:
       "args": ["-y", "search-console-mcp"],
       "env": {
         "BING_API_KEY": "your-api-key-here",
-        "GOOGLE_APPLICATION_CREDENTIALS": "/path/to/your/service-account.json"
+        "GOOGLE_APPLICATION_CREDENTIALS": "/path/to/your/service-account.json",
+        "PAGESPEED_API_KEY": "your-pagespeed-key (optional)"
       }
     }
   }
 }
 ```
 
-*That's it! Environment variables are optional and only needed if you are using a Bing API Key or a Google Service Account.*
+*That's it! Environment variables are optional and only needed if you are using a Bing API Key, a Google Service Account, or a PageSpeed API Key.*
 
 ### Cursor
 
@@ -61,6 +62,7 @@ Add this to your `claude_desktop_config.json`:
 5.  **Environment Variables (Optional):** Click **Edit** on your new server to add variables if needed:
     *   `BING_API_KEY`: For Bing integration.
     *   `GOOGLE_APPLICATION_CREDENTIALS`: For Google Service Account auth.
+    *   `PAGESPEED_API_KEY`: For higher PageSpeed quotas (optional).
 
 <Tip>
   If you see an error about "command not found," try using the full path to your node executable or `npm` prefix.
@@ -84,7 +86,8 @@ You can configure the server specifically for your workspace using the standard 
                 ],
                 "env": {
                     "BING_API_KEY": "your-api-key-here",
-                    "GOOGLE_APPLICATION_CREDENTIALS": "/path/to/your/service-account.json"
+                    "GOOGLE_APPLICATION_CREDENTIALS": "/path/to/your/service-account.json",
+                    "PAGESPEED_API_KEY": "your-pagespeed-key (optional)"
                 }
             }
         }

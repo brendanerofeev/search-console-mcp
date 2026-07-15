@@ -21,7 +21,7 @@ The server communicates with multiple upstream providers:
 *   **Google Search Console API:** Performance data and site management.
 *   **Bing Webmaster Tools API:** Search data, crawl issues, and IndexNow.
 *   **Google Analytics 4 API:** Real user behavior and conversion data.
-*   **PageSpeed Insights API:** Performance and Lighthouse data.
+*   **PageSpeed Insights API:** Performance and Lighthouse data (supports optional `PAGESPEED_API_KEY` for higher quota).
 
 ## Data Flow
 

@@ -9,6 +9,10 @@ The \`analytics_drop_attribution\` tool correlates traffic drops with major know
 | Date | Update Name | Impact Area |
 |------|-------------|-------------|
 | 2026-02-05 | February 2026 Discover Core Update | Discover Feed |
+| 2026-03-24 | March 2026 Spam Update | Spam / Content Quality |
+| 2026-03-27 | March 2026 Core Update | General Ranking |
+| 2026-05-21 | May 2026 Core Update | General Ranking |
+| 2026-06-24 | June 2026 Spam Update | Spam / Content Quality |
 
 ## 2025
 

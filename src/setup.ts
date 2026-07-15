@@ -107,7 +107,8 @@ async function detectConfig() {
         googleAccounts: accounts.filter(a => a.engine === 'google'),
         bingAccounts: accounts.filter(a => a.engine === 'bing'),
         ga4Accounts: accounts.filter(a => a.engine === 'ga4'),
-        legacyBing: !!process.env.BING_API_KEY
+        legacyBing: !!process.env.BING_API_KEY,
+        pagespeedApiKey: !!process.env.PAGESPEED_API_KEY
     };
 }
 
@@ -115,14 +116,16 @@ function printDetectionSummary(results: any) {
     const gCount = results.googleAccounts ? results.googleAccounts.length : 0;
     const bCount = (results.bingAccounts ? results.bingAccounts.length : 0) + (results.legacyBing ? 1 : 0);
     const ga4Count = results.ga4Accounts ? results.ga4Accounts.length : 0;
+    const hasPageSpeed = !!results.pagespeedApiKey;
 
-    if (gCount === 0 && bCount === 0 && ga4Count === 0) return;
+    if (gCount === 0 && bCount === 0 && ga4Count === 0 && !hasPageSpeed) return;
 
     console.log(`${colors.bold}${colors.dim}🔍 Connection Status${colors.reset}\n`);
 
     printStatusLine('Google Search Console', gCount > 0);
     printStatusLine('Google Analytics 4', ga4Count > 0);
     printStatusLine('Bing Webmaster Tools', bCount > 0);
+    printStatusLine('PageSpeed Insights (API Key)', hasPageSpeed);
     console.log('');
 }
 
@@ -613,6 +616,9 @@ export async function main() {
     } else if (engineFlag === 'ga4') {
         await handleGA4Flow(configStatus);
         return;
+    } else if (engineFlag === 'pagespeed') {
+        await setupPageSpeed();
+        return;
     }
 
     while (true) {
@@ -624,9 +630,10 @@ export async function main() {
         console.log(`\n1. Google Search Console`);
         console.log('2. Google Analytics 4');
         console.log('3. Bing Webmaster Tools');
-        console.log('4. Exit');
+        console.log('4. PageSpeed Insights (Optional API Key)');
+        console.log('5. Exit');
 
-        const choice = await ask(`\n${colors.bold}${colors.cyan}Enter your choice (1-4): ${colors.reset}`);
+        const choice = await ask(`\n${colors.bold}${colors.cyan}Enter your choice (1-5): ${colors.reset}`);
 
         switch (choice) {
             case '1':
@@ -639,6 +646,11 @@ export async function main() {
                 await handleBingFlow(configStatus);
                 break;
             case '4':
+                await setupPageSpeed();
+                // Refresh config status after setting key
+                Object.assign(configStatus, await detectConfig());
+                break;
+            case '5':
             default:
                 console.log(`\n${colors.dim}See you on the flip side!${colors.reset}`);
                 rl.close();
@@ -838,6 +850,61 @@ async function setupGA4OAuth() {
         printError(`Failed: ${(e as Error).message}`);
     }
 }
+
+async function setupPageSpeed() {
+    printBoxHeader('PageSpeed Insights Setup');
+    console.log('This key is optional, but raises daily quota from ~100 to 25,000 queries/day.');
+    console.log('1. Go to https://console.cloud.google.com/apis/credentials');
+    console.log('2. Create an API key and enable the "PageSpeed Insights API" in your project.\n');
+
+    const apiKey = await ask('Enter your PageSpeed API Key (leave empty to skip): ');
+
+    if (!apiKey) {
+        printInfo('PageSpeed setup skipped or cleared.');
+        return;
+    }
+
+    const envPath = resolve('.env');
+    let envContent = '';
+
+    if (existsSync(envPath)) {
+        envContent = readFileSync(envPath, 'utf8');
+        if (envContent.includes('PAGESPEED_API_KEY=')) {
+            // Replace existing line
+            envContent = envContent.replace(/PAGESPEED_API_KEY=.*/, `PAGESPEED_API_KEY=${apiKey}`);
+        } else {
+            // Append
+            envContent += `\nPAGESPEED_API_KEY=${apiKey}\n`;
+        }
+    } else {
+        const examplePath = resolve('.env.example');
+        if (existsSync(examplePath)) {
+            envContent = readFileSync(examplePath, 'utf8');
+            if (envContent.includes('PAGESPEED_API_KEY=')) {
+                envContent = envContent.replace(/PAGESPEED_API_KEY=.*/, `PAGESPEED_API_KEY=${apiKey}`);
+            } else {
+                envContent += `\nPAGESPEED_API_KEY=${apiKey}\n`;
+            }
+        } else {
+            envContent = `PAGESPEED_API_KEY=${apiKey}\n`;
+        }
+    }
+
+    writeFileSync(envPath, envContent, 'utf8');
+    printSuccess('Successfully wrote PAGESPEED_API_KEY to .env file!');
+
+    console.log(`\n${colors.bold}Note for MCP Client integration:${colors.reset}`);
+    console.log('If you run this server via an MCP Client (like Cursor, Claude Desktop, VS Code),');
+    console.log('you must configure the environment variables in your client\'s config file.');
+    console.log('See the documentation for more details:');
+    console.log(`${colors.cyan}https://github.com/saurabhsharma2u/search-console-mcp#pagespeed-insights-optional-api-key${colors.reset}\n`);
+
+    // Force reloading of env vars for current process
+    process.env.PAGESPEED_API_KEY = apiKey;
+
+    await ask('Press Enter to continue...');
+}
+
 
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1]);
 if (isMain) {

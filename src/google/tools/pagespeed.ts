@@ -3,6 +3,14 @@ import { google, pagespeedonline_v5 } from 'googleapis';
 const pagespeed = google.pagespeedonline('v5');
 
 /**
+ * Returns the PageSpeed API key from environment, if configured.
+ * When set, this increases the daily quota from ~100 to 25,000 queries/day.
+ */
+function getApiKey(): string | undefined {
+    return process.env.PAGESPEED_API_KEY || undefined;
+}
+
+/**
  * Summary of PageSpeed Insights analysis results, including scores and CWV.
  */
 export interface PageSpeedResult {
@@ -48,11 +56,26 @@ export async function analyzePageSpeed(
     url: string,
     strategy: 'mobile' | 'desktop' = 'mobile'
 ): Promise<PageSpeedResult> {
-    const res = await pagespeed.pagespeedapi.runpagespeed({
-        url,
-        strategy,
-        category: ['performance', 'accessibility', 'best-practices', 'seo']
-    });
+    const key = getApiKey();
+    let res;
+    try {
+        res = await pagespeed.pagespeedapi.runpagespeed({
+            url,
+            strategy,
+            category: ['performance', 'accessibility', 'best-practices', 'seo'],
+            ...(key && { key })
+        });
+    } catch (error: any) {
+        const status = error?.code || error?.response?.status;
+        if ((status === 429 || status === 500) && !key) {
+            throw new Error(
+                `PageSpeed Insights rate limit exceeded. You are using the free tier which is limited to ~100 queries/day. ` +
+                `To increase your quota to 25,000/day, set the PAGESPEED_API_KEY environment variable. ` +
+                `Get a free key at: https://console.cloud.google.com/apis/credentials`
+            );
+        }
+        throw error;
+    }
 
     const data = res.data;
     const lighthouse = data.lighthouseResult;

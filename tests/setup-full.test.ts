@@ -282,9 +282,25 @@ describe('Setup Full', () => {
             }));
         });
 
+        it('should handle PageSpeed setup flow', async () => {
+            process.argv = ['node', 'setup.ts', '--engine=pagespeed'];
+            mockAnswers = ['my-pagespeed-key', ''];
+
+            vi.mocked(fs.existsSync).mockReturnValue(true);
+            vi.mocked(fs.readFileSync).mockReturnValue('PAGESPEED_API_KEY=old-key');
+
+            await setupModule.main();
+
+            expect(fs.writeFileSync).toHaveBeenCalledWith(
+                expect.stringContaining('.env'),
+                expect.stringContaining('PAGESPEED_API_KEY=my-pagespeed-key'),
+                'utf8'
+            );
+        });
+
         it('should handle main menu exit', async () => {
             process.argv = ['node', 'setup.ts'];
-            mockAnswers = ['4'];
+            mockAnswers = ['5'];
             await setupModule.main();
             expect(mockRl.close).toHaveBeenCalled();
         });

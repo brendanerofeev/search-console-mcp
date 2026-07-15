@@ -30,6 +30,10 @@ Runs a full PageSpeed Insights analysis, returning Lighthouse scores and Core We
 *   **When to use:** When a page's rankings are dropping despite good content.
 *   **What problem it solves:** Identifying performance bottlenecks like LCP (Largest Contentful Paint) issues.
 
+<Tip>
+  Set the `PAGESPEED_API_KEY` environment variable for higher quotas (25,000/day vs ~100/day without a key). See [Authentication](/getting-started/authentication#5-pagespeed-insights-optional-api-key) for setup.
+</Tip>
+
 ## Combining the Tools
 
 The power of this MCP is the ability to combine these. An agent can:

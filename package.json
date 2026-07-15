@@ -1,6 +1,6 @@
 {
   "name": "search-console-mcp",
-  "version": "1.14.0",
+  "version": "1.14.1",
   "mcpName": "io.github.saurabhsharma2u/search-console-mcp",
   "description": "MCP server for Google Search Console, Bing Webmaster Tools, and Google Analytics 4",
   "type": "module",
@@ -29,7 +29,7 @@
     "google analytics",
     "ga4"
   ],
-  "author": "",
+  "author": "Saurabh Sharma",
   "license": "MIT",
   "dependencies": {
     "@adobe/structured-data-validator": "^1.7.0",

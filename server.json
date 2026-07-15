@@ -6,12 +6,12 @@
     "url": "https://github.com/saurabhsharma2u/search-console-mcp",
     "source": "github"
   },
-  "version": "1.14.0",
+  "version": "1.14.1",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "search-console-mcp",
-      "version": "1.14.0",
+      "version": "1.14.1",
       "transport": {
         "type": "stdio"
       },
@@ -29,6 +29,13 @@
           "format": "string",
           "isSecret": true,
           "name": "BING_API_KEY"
+        },
+        {
+          "description": "PageSpeed Insights API key for higher quota (25k/day). Optional.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true,
+          "name": "PAGESPEED_API_KEY"
         }
       ]
     }

@@ -4,3 +4,5 @@ coverage/
 .env
 .mcpregistry_*
 docs-site/
+AGENT.md
+agent-docs

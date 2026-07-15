@@ -58,6 +58,10 @@ const ALGORITHM_UPDATES = [
     { date: '2025-12-11', name: 'December 2025 Core Update' },
     // 2026
     { date: '2026-02-05', name: 'February 2026 Discover Core Update' },
+    { date: '2026-03-24', name: 'March 2026 Spam Update' },
+    { date: '2026-03-27', name: 'March 2026 Core Update' },
+    { date: '2026-05-21', name: 'May 2026 Core Update' },
+    { date: '2026-06-24', name: 'June 2026 Spam Update' },
 ];
 
 /**

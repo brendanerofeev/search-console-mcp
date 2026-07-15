@@ -133,6 +133,40 @@ Just like Search Console, you must add your Service Account email to your GA4 pr
 
 ---
 
+## 5. PageSpeed Insights (Optional API Key)
+
+PageSpeed tools (`pagespeed_analyze`, `pagespeed_core_web_vitals`, `analytics_pagespeed_correlation`) work **without any configuration** using Google's free tier.
+
+For heavy usage (batch audits, automated monitoring), you can provide an API key to increase quotas.
+
+| Scenario | Daily Limit | Rate Limit |
+|---|---|---|
+| No API key (default) | ~100 queries/day | ~1 query/sec |
+| With API key | 25,000 queries/day | ~4 queries/sec |
+
+### Step 1: Create an API Key
+1.  Go to the [Google Cloud Console — Credentials](https://console.cloud.google.com/apis/credentials).
+2.  Click **Create Credentials** > **API key**.
+3.  Copy the generated key.
+
+### Step 2: Enable the API
+1.  In the same GCP project, go to **APIs & Services** > **Library**.
+2.  Search for **PageSpeed Insights API**.
+3.  Click **Enable**.
+
+### Step 3: Configure
+Set the `PAGESPEED_API_KEY` environment variable in your MCP client or `.env` file:
+
+```bash
+export PAGESPEED_API_KEY="your-api-key-here"
+```
+
+<Tip>
+  This key is optional. Without it, all PageSpeed tools still work — just at lower rate limits.
+</Tip>
+
+---
+
 ## What's Next?
 
 Once you're authenticated, you can manage your accounts and connect additional ones:
