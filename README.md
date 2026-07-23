@@ -97,6 +97,28 @@ npx search-console-mcp accounts remove --account=you@company.com
 
 When your agent queries a site, the server auto-resolves which account owns it — no manual switching. [Multi-account docs →](https://searchconsolemcp.mintlify.app/getting-started/multi-account)
 
+
+## 🖥️ Run tools from the CLI
+
+Search Console MCP also exposes registered MCP tools as direct CLI commands. Use the `run` subcommand to list tools, inspect tool-specific arguments, and print results as JSON, CSV, or an ASCII table:
+
+```bash
+# List registered tools
+npx search-console-mcp run --help
+
+# Show options for one tool
+npx search-console-mcp run analytics_query --help
+
+# Run a tool with JSON output (default)
+npx search-console-mcp run seo_low_hanging_fruit --siteUrl=https://example.com --minImpressions=100
+
+# Print array results as CSV or a table
+npx search-console-mcp run analytics_query --siteUrl=https://example.com --startDate=2026-06-01 --endDate=2026-06-30 --dimensions=date,query --format=csv
+npx search-console-mcp run sites_list --engine=google --format=table
+```
+
+CLI arguments are validated against the same Zod schemas used by MCP clients. String arguments are coerced for common schema types, including numbers, booleans, comma-separated arrays, and JSON arrays/objects.
+
 <details>
 <summary id="service-account-advanced">Service Account setup (for servers/automation)</summary>
 

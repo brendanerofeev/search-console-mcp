@@ -61,6 +61,7 @@ import { registerPrompts } from "./prompts/index.js";
 import { jsonToCsv } from "./common/utils/csv.js";
 import { runDiagnostics } from "./common/diagnostics.js";
 import { logger } from "./utils/logger.js";
+import { createToolRegistrar, isCliRun, runCli } from "./utils/cli.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -80,8 +81,10 @@ const server = new McpServer({
   version: version,
 });
 
+const registerTool = createToolRegistrar(server, version);
+
 // Get Started Tool
-server.tool(
+registerTool(
   getStartedToolName,
   getStartedToolDescription,
   getStartedToolSchema,
@@ -89,7 +92,7 @@ server.tool(
 );
 
 // Sites Tools
-server.tool(
+registerTool(
   "sites_list",
   "List all verified sites or properties across all authorized accounts",
   { engine: z.enum(["google", "bing", "ga4"]).optional().describe("The search engine (default: google)") },
@@ -169,7 +172,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "bing_seo_cannibalization",
   "Detect pages competing for the same query in Bing.",
   {
@@ -188,7 +191,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "bing_seo_lost_queries",
   "Identify queries that lost significant traffic on Bing compared to the previous period.",
   {
@@ -207,7 +210,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "bing_brand_analysis",
   "Analyze Brand vs Non-Brand performance on Bing.",
   {
@@ -227,7 +230,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "bing_analytics_trends",
   "Detect rising or declining trends in Bing query performance",
   {
@@ -248,7 +251,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "sites_add",
   "Add a new site to Search Console or Bing Webmaster Tools",
   {
@@ -267,7 +270,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "sites_delete",
   "Remove a site from Search Console or Bing Webmaster Tools",
   {
@@ -286,7 +289,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "sites_get",
   "Get information about a specific site",
   { siteUrl: z.string().describe("The URL of the site") },
@@ -302,7 +305,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "sites_health_check",
   "Run a health check on one or all verified sites. Checks performance trends and status.",
   {
@@ -324,7 +327,7 @@ server.tool(
 );
 
 // Sitemaps Tools
-server.tool(
+registerTool(
   "sitemaps_list",
   "List sitemaps for a site",
   {
@@ -343,7 +346,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "sitemaps_get",
   "Get details about a specific sitemap",
   {
@@ -362,7 +365,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "sitemaps_submit",
   "Submit a sitemap to Search Console or Bing Webmaster Tools",
   {
@@ -382,7 +385,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "sitemaps_delete",
   "Delete a sitemap from Search Console or Bing Webmaster Tools",
   {
@@ -403,7 +406,7 @@ server.tool(
 );
 
 // Analytics Tools
-server.tool(
+registerTool(
   "analytics_query",
   "Query search analytics data with optional pagination",
   {
@@ -455,7 +458,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "analytics_performance_summary",
   "Get the aggregate performance metrics (clicks, impressions, CTR, position) for the last N days.",
   {
@@ -477,7 +480,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "analytics_compare_periods",
   "Compare performance metrics between two date periods. Useful for week-over-week or month-over-month analysis.",
   {
@@ -499,7 +502,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "compare_engines",
   "Compare performance data between Google and Bing for a specific dimension (query, page, etc).",
   {
@@ -524,7 +527,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "analytics_top_queries",
   "Get top search queries by clicks or impressions for the last N days.",
   {
@@ -545,7 +548,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "analytics_top_pages",
   "Get top performing pages by clicks or impressions for the last N days.",
   {
@@ -566,7 +569,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "analytics_by_country",
   "Get performance breakdown by country for the last N days.",
   {
@@ -587,7 +590,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "analytics_search_appearance",
   "Get performance breakdown by search appearance type for the last N days.",
   {
@@ -608,7 +611,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "analytics_trends",
   "Detect traffic trends (rising/declining) for queries or pages.",
   {
@@ -631,7 +634,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "analytics_anomalies",
   "Identify unusual daily spikes or drops in traffic.",
   {
@@ -651,7 +654,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "analytics_drop_attribution",
   "Analyze a significant traffic drop to identify if it was caused by specific devices (mobile/desktop) or coincides with known Google algorithm updates.",
   {
@@ -671,7 +674,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "analytics_time_series",
   "Get advanced time series data including rolling averages, seasonality strength, and trend forecasting. Supports multi-dimensional analysis, metrics selection, and custom granularities.",
   {
@@ -713,7 +716,7 @@ server.tool(
 );
 
 // Inspection Tools
-server.tool(
+registerTool(
   "inspection_inspect",
   "Inspect a URL to check its indexing status, crawl info, and health",
   {
@@ -736,7 +739,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "inspection_batch",
   "Inspect multiple URLs for a site in batch",
   {
@@ -765,7 +768,7 @@ server.tool(
 );
 
 // PageSpeed Insights Tools
-server.tool(
+registerTool(
   "pagespeed_analyze",
   "Run PageSpeed Insights analysis on a URL to get performance, accessibility, best practices, and SEO scores",
   {
@@ -784,7 +787,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "pagespeed_core_web_vitals",
   "Get Core Web Vitals for both mobile and desktop including LCP, FID, CLS, FCP, TTI, and TBT",
   {
@@ -803,7 +806,7 @@ server.tool(
 );
 
 // SEO Insights Tools
-server.tool(
+registerTool(
   "seo_recommendations",
   "Generate SEO recommendations based on site performance data",
   {
@@ -825,7 +828,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "seo_low_hanging_fruit",
   "Find keywords with high impressions but low rankings that have potential for growth",
   {
@@ -849,7 +852,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "seo_cannibalization",
   "Detect keyword cannibalization - multiple pages competing for the same query",
   {
@@ -873,7 +876,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "seo_low_ctr_opportunities",
   "Find queries with low CTR relative to their ranking position. Great for title tag optimization.",
   {
@@ -897,7 +900,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "seo_striking_distance",
   "Find keywords ranking in positions 8-15. These are high-priority targets to push to Page 1.",
   {
@@ -920,7 +923,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "seo_lost_queries",
   "Identify queries that lost all traffic (or dropped >80%) compared to the previous period.",
   {
@@ -943,7 +946,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "seo_brand_vs_nonbrand",
   "Analyze performance split between Brand and Non-Brand queries using a regex.",
   {
@@ -966,7 +969,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "seo_quick_wins",
   "Find pages with queries ranking on page 2 (positions 11-20) that could be pushed to page 1",
   {
@@ -992,7 +995,7 @@ server.tool(
 
 
 // Account Management Tools
-server.tool(
+registerTool(
   "accounts_list",
   "List all authorized Google and Bing accounts",
   {},
@@ -1015,7 +1018,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "accounts_add_site",
   "Authorize a specific site or domain for an account (Account Boundary)",
   {
@@ -1043,7 +1046,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "accounts_remove",
   "Remove an authorized account",
   { accountId: z.string().describe("The ID of the account to remove") },
@@ -1060,7 +1063,7 @@ server.tool(
 );
 
 // SEO Primitives (Atoms)
-server.tool(
+registerTool(
   "seo_primitive_ranking_bucket",
   "primitive: Get the ranking bucket for a specific position (e.g. Top 3, Page 1).",
   {
@@ -1074,7 +1077,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "seo_primitive_traffic_delta",
   "primitive: Calculate the delta between two traffic metrics (absolute and percentage).",
   {
@@ -1089,7 +1092,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "seo_primitive_is_brand",
   "primitive: Check if a query is a brand query based on a regex pattern.",
   {
@@ -1104,7 +1107,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "seo_primitive_is_cannibalized",
   "primitive: Check if two pages are competing for the same query based on their metrics.",
   {
@@ -1127,7 +1130,7 @@ server.tool(
 );
 
 // Schema Validator Tools
-server.tool(
+registerTool(
   "schema_validate",
   "Validate Schema.org structured data (JSON-LD) from a URL, HTML snippet, or JSON object.",
   {
@@ -1147,7 +1150,7 @@ server.tool(
 );
 
 // Support Tools
-server.tool(
+registerTool(
   "util_star_repo",
   "Star the GitHub repository to support the project. Uses GitHub CLI if available, or opens a browser.",
   {},
@@ -1166,7 +1169,7 @@ server.tool(
 
 // --- Bing Tools ---
 
-server.tool(
+registerTool(
   "bing_sites_list",
   "List all sites verified in Bing Webmaster Tools",
   {},
@@ -1182,7 +1185,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "bing_sites_add",
   "Add a new site to Bing Webmaster Tools",
   { siteUrl: z.string().describe("The URL of the site to add") },
@@ -1198,7 +1201,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "bing_sites_delete",
   "Remove a site from Bing Webmaster Tools",
   { siteUrl: z.string().describe("The URL of the site to remove") },
@@ -1214,7 +1217,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "bing_sitemaps_list",
   "List sitemaps for a Bing site",
   {
@@ -1232,7 +1235,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "bing_sitemaps_submit",
   "Submit a sitemap to Bing Webmaster Tools",
   {
@@ -1251,7 +1254,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "bing_sitemaps_delete",
   "Remove a sitemap from Bing Webmaster Tools",
   {
@@ -1270,7 +1273,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "bing_analytics_query",
   "Get query performance stats from Bing Webmaster Tools (Top Queries)",
   {
@@ -1303,7 +1306,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "bing_analytics_page",
   "Get page performance stats from Bing Webmaster Tools (Top Pages)",
   {
@@ -1323,7 +1326,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "bing_analytics_page_query",
   "Get query performance stats for a specific page from Bing Webmaster Tools",
   {
@@ -1344,7 +1347,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "bing_get_top_queries",
   "Alias for bing_analytics_query. Get top queries for a site.",
   {
@@ -1364,7 +1367,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "bing_get_top_pages",
   "Alias for bing_analytics_page. Get top pages for a site.",
   {
@@ -1382,7 +1385,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "bing_analytics_query_page",
   "Get combined query and page performance stats for a site",
   {
@@ -1402,7 +1405,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "bing_rank_traffic_stats",
   "Get historical rank and traffic statistics for a site",
   {
@@ -1420,7 +1423,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "bing_keywords_stats",
   "Get historical stats for a keyword in Bing",
   {
@@ -1440,7 +1443,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "bing_related_keywords",
   "Get related keywords and search volume from Bing",
   {
@@ -1460,7 +1463,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "bing_crawl_issues",
   "Get crawl issues for a site from Bing Webmaster Tools",
   {
@@ -1478,7 +1481,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "bing_crawl_stats",
   "Get crawl statistics (indexed, crawled, errors) for a site",
   {
@@ -1496,7 +1499,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "bing_url_submission_quota",
   "Get remaining URL submission quota for Bing",
   {
@@ -1514,7 +1517,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "bing_url_submit",
   "Submit a single URL to Bing for indexing",
   {
@@ -1533,7 +1536,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "bing_url_submit_batch",
   "Submit multiple URLs to Bing for indexing in a single batch",
   {
@@ -1552,7 +1555,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "bing_index_now",
   "Submit URLs via IndexNow API (Bing, Yandex, etc.)",
   {
@@ -1575,7 +1578,7 @@ server.tool(
 
 // --- Indexing API Tools ---
 
-server.tool(
+registerTool(
   "indexing_submit_url",
   "Submit a URL for indexing (notify Google or Bing that a page was updated). Google Indexing API is officially for JobPosting/BroadcastEvent pages.",
   {
@@ -1597,7 +1600,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "indexing_remove_url",
   "Notify Google that a URL has been removed (e.g., expired job posting). Google only.",
   {
@@ -1616,7 +1619,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "indexing_status",
   "Check the notification status for a URL previously submitted to the Google Indexing API",
   {
@@ -1635,7 +1638,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "indexing_batch_submit",
   "Submit multiple URLs for indexing in batch. Google: max 200 (daily quota), Bing: max 500.",
   {
@@ -1657,7 +1660,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "bing_sites_health",
   "Run a comprehensive health check on one or all verified Bing sites",
   {
@@ -1675,7 +1678,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "bing_opportunity_finder",
   "Find high-potential 'low-hanging fruit' keywords in Bing",
   {
@@ -1694,7 +1697,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "bing_seo_recommendations",
   "Generate prioritized SEO recommendations for a Bing site",
   {
@@ -1712,7 +1715,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "bing_striking_distance",
   "Find keywords ranking positions 8-15 on Bing (near page 1)",
   {
@@ -1730,7 +1733,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "bing_low_ctr_opportunities",
   "Identify high-ranking Bing queries with lower than expected CTR",
   {
@@ -1749,7 +1752,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "bing_url_info",
   "Get detailed indexing and crawl information for a URL in Bing",
   {
@@ -1768,7 +1771,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "bing_link_counts",
   "Get inbound link counts for a site from Bing",
   {
@@ -1786,7 +1789,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "bing_analytics_detect_anomalies",
   "Detect performance anomalies in Bing traffic",
   {
@@ -1806,7 +1809,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "bing_analytics_compare_periods",
   "Compare performance between two date ranges in Bing",
   {
@@ -1828,7 +1831,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "bing_analytics_drop_attribution",
   "Identify the likely cause of a Bing traffic drop",
   {
@@ -1848,7 +1851,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "bing_analytics_time_series",
   "Advanced time series analysis for Bing performance data",
   {
@@ -1870,7 +1873,7 @@ server.tool(
 );
 // --- GA4 Tools ---
 
-server.tool(
+registerTool(
   "analytics_page_performance",
   "Get detailed page performance metrics from GA4 (sessions, views, engagement)",
   {
@@ -1900,7 +1903,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "analytics_traffic_sources",
   "Analyze traffic sources (Channel, Source, Medium) in GA4",
   {
@@ -1924,7 +1927,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "analytics_organic_landing_pages",
   "Get performance of organic landing pages in GA4 (matches GSC data)",
   {
@@ -1947,7 +1950,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "analytics_content_performance",
   "Analyze content performance by Content Group in GA4 (Requires Content Groups to be configured in GA4 Admin)",
   {
@@ -1970,7 +1973,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "analytics_ecommerce",
   "Get ecommerce performance (products, revenue) from GA4",
   {
@@ -1993,7 +1996,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "analytics_realtime",
   "Get realtime active users broken down by page, country, and device",
   {
@@ -2012,7 +2015,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "analytics_user_behavior",
   "Get user behavior breakdown (Device, Country, Engagement) in a single batch",
   {
@@ -2033,7 +2036,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "analytics_audience_segments",
   "Get audience segmentation (New vs Returning, Age, OS) in a single batch",
   {
@@ -2054,7 +2057,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "analytics_conversion_funnel",
   "Analyze top converting pages and events",
   {
@@ -2076,7 +2079,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "analytics_pagespeed_correlation",
   "Correlate GA4 engagement metrics with PageSpeed Insights scores for top organic pages",
   {
@@ -2102,7 +2105,7 @@ server.tool(
 
 // --- Cross-Platform Tools ---
 
-server.tool(
+registerTool(
   "page_analysis",
   "Compare GSC ranking data with GA4 behavior data for top pages to find opportunities",
   {
@@ -2126,7 +2129,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "traffic_health_check",
   "Diagnose tracking issues by comparing GSC clicks vs GA4 organic sessions",
   {
@@ -2149,7 +2152,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "opportunity_matrix",
   "Prioritize SEO tasks by combining signals from GSC, GA4, and Bing",
   {
@@ -2175,7 +2178,7 @@ server.tool(
   }
 );
 
-server.tool(
+registerTool(
   "brand_analysis",
   "Analyze Brand vs Non-Brand performance across GSC, Bing, and GA4",
   {
@@ -2707,7 +2710,7 @@ If any site has a 'critical' or 'warning' status:
 registerPrompts(server);
 
 // Diagnostics Tool
-server.tool(
+registerTool(
   "diagnostics",
   "Run connectivity diagnostics for all connected accounts. Use this to troubleshoot '0 results' or authentication issues.",
   {},
@@ -2725,6 +2728,29 @@ server.tool(
 
 async function main() {
   const command = process.argv[2];
+
+  if (process.stdout.isTTY) {
+    try {
+      const { checkVersionCached, promptUpdateInteractive } = await import("./utils/update.js");
+      const info = await checkVersionCached(version);
+      if (info.updateAvailable) {
+        await promptUpdateInteractive(info.latestVersion, version);
+      }
+    } catch {
+      // Fail silently
+    }
+  }
+
+  if (command === 'update') {
+    const { runUpdateCommand } = await import('./utils/update.js');
+    await runUpdateCommand();
+    return;
+  }
+
+  if (isCliRun()) {
+    process.exitCode = await runCli();
+    return;
+  }
 
   // Handle standalone commands
   if (command === 'setup') {
