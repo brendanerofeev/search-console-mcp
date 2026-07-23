@@ -81,7 +81,7 @@ const server = new McpServer({
   version: version,
 });
 
-const registerTool = createToolRegistrar(server);
+const registerTool = createToolRegistrar(server, version);
 
 // Get Started Tool
 registerTool(
@@ -2727,11 +2727,30 @@ registerTool(
 );
 
 async function main() {
+  const command = process.argv[2];
+
+  if (process.stdout.isTTY) {
+    try {
+      const { checkVersionCached, promptUpdateInteractive } = await import("./utils/update.js");
+      const info = await checkVersionCached(version);
+      if (info.updateAvailable) {
+        await promptUpdateInteractive(info.latestVersion, version);
+      }
+    } catch {
+      // Fail silently
+    }
+  }
+
+  if (command === 'update') {
+    const { runUpdateCommand } = await import('./utils/update.js');
+    await runUpdateCommand();
+    return;
+  }
+
   if (isCliRun()) {
     process.exitCode = await runCli();
     return;
   }
-  const command = process.argv[2];
 
   // Handle standalone commands
   if (command === 'setup') {

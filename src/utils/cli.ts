@@ -18,16 +18,37 @@ export type McpToolRegistrar = (
   handler: (args: any) => Promise<any>
 ) => void;
 
-export function createToolRegistrar(server: { tool: McpToolRegistrar }): McpToolRegistrar {
+export function createToolRegistrar(server: { tool: McpToolRegistrar }, currentVersion = "1.0.0"): McpToolRegistrar {
   return (name, description, schemaShape, handler) => {
+    const wrappedHandler = async (args: any) => {
+      const res = await handler(args);
+      if (!isCliRun() && res && Array.isArray(res.content)) {
+        try {
+          const { getAgentUpdateNotice } = await import("./update.js");
+          const notice = await getAgentUpdateNotice(currentVersion);
+          if (notice) {
+            const textItem = res.content.find((item: any) => item?.type === "text");
+            if (textItem && typeof textItem.text === "string") {
+              textItem.text += notice;
+            } else {
+              res.content.push({ type: "text", text: notice });
+            }
+          }
+        } catch {
+          // Ignore
+        }
+      }
+      return res;
+    };
+
     toolsRegistry.set(name, {
       name,
       description,
       schemaShape,
       schema: z.object(schemaShape),
-      handler,
+      handler: wrappedHandler,
     });
-    server.tool(name, description, schemaShape, handler);
+    server.tool(name, description, schemaShape, wrappedHandler);
   };
 }
 
@@ -63,9 +84,20 @@ export async function runCli(argv = process.argv): Promise<number> {
     return 1;
   }
 
-  const result = await tool.handler(parsed.data);
-  printFormatted(unwrapMcpResult(result), format);
-  return 0;
+  try {
+    const result = await tool.handler(parsed.data);
+    const isError = !!result?.isError;
+    const unwrapped = unwrapMcpResult(result);
+    if (isError) {
+      console.error(typeof unwrapped === "string" ? unwrapped : JSON.stringify(unwrapped, null, 2));
+      return 1;
+    }
+    printFormatted(unwrapped, format);
+    return 0;
+  } catch (error) {
+    console.error(`Error executing tool: ${error instanceof Error ? error.message : String(error)}`);
+    return 1;
+  }
 }
 
 function parseArgs(args: string[], schemaShape: Record<string, z.ZodTypeAny>): { values: Record<string, any>; format: string } {
