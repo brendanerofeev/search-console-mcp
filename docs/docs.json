@@ -10,9 +10,9 @@
   },
   "seo": {
     "metatags": {
-        "canonical": "https://searchconsolemcp.saurabh.app"
+      "canonical": "https://searchconsolemcp.saurabh.app"
     }
-},
+  },
   "topbarLinks": [
     {
       "name": "GitHub",
@@ -20,67 +20,95 @@
     }
   ],
   "navigation": {
+    "tabs": [
+      {
+        "tab": "MCP Server",
+        "icon": "server",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "getting-started/overview",
+              "getting-started/installation",
+              "getting-started/authentication",
+              "getting-started/accounts",
+              "getting-started/multi-account",
+              "getting-started/first-queries"
+            ]
+          },
+          {
+            "group": "Concepts",
+            "pages": [
+              "concepts/mcp-and-seo",
+              "concepts/architecture",
+              "concepts/data-vs-intelligence",
+              "concepts/trust-and-security"
+            ]
+          },
+          {
+            "group": "Tools",
+            "pages": [
+              "tools/analytics",
+              "tools/seo-intelligence",
+              "tools/ga4",
+              "tools/bing",
+              "tools/compare-engines",
+              "tools/inspection",
+              "tools/sites-and-sitemaps",
+              "tools/site-health"
+            ]
+          },
+          {
+            "group": "Workflows",
+            "pages": [
+              "workflows/investigate-traffic-drop",
+              "workflows/find-quick-wins",
+              "workflows/detect-cannibalization",
+              "workflows/weekly-seo-review"
+            ]
+          },
+          {
+            "group": "Prompts",
+            "pages": [
+              "prompts/magic-prompts",
+              "prompts/claude",
+              "prompts/cursor",
+              "prompts/generic-agents",
+              "prompts/unified-search"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "CLI Tool",
+        "icon": "terminal",
+        "groups": [
+          {
+            "group": "CLI Reference",
+            "pages": [
+              "cli/overview",
+              "cli/commands",
+              "cli/update"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Contributing",
+        "icon": "handshake",
+        "groups": [
+          {
+            "group": "Contributing",
+            "pages": [
+              "contributing/philosophy",
+              "contributing/adding-tools",
+              "contributing/testing"
+            ]
+          }
+        ]
+      }
+    ],
     "pages": [
-      {
-        "group": "Getting Started",
-        "pages": [
-          "getting-started/overview",
-          "getting-started/installation",
-          "getting-started/authentication",
-          "getting-started/accounts",
-          "getting-started/multi-account",
-          "getting-started/first-queries"
-        ]
-      },
-      {
-        "group": "Concepts",
-        "pages": [
-          "concepts/mcp-and-seo",
-          "concepts/architecture",
-          "concepts/data-vs-intelligence",
-          "concepts/trust-and-security"
-        ]
-      },
-      {
-        "group": "Tools",
-        "pages": [
-          "tools/analytics",
-          "tools/seo-intelligence",
-          "tools/ga4",
-          "tools/bing",
-          "tools/compare-engines",
-          "tools/inspection",
-          "tools/sites-and-sitemaps",
-          "tools/site-health"
-        ]
-      },
-      {
-        "group": "Workflows",
-        "pages": [
-          "workflows/investigate-traffic-drop",
-          "workflows/find-quick-wins",
-          "workflows/detect-cannibalization",
-          "workflows/weekly-seo-review"
-        ]
-      },
-      {
-        "group": "Prompts",
-        "pages": [
-          "prompts/magic-prompts",
-          "prompts/claude",
-          "prompts/cursor",
-          "prompts/generic-agents",
-          "prompts/unified-search"
-        ]
-      },
-      {
-        "group": "Contributing",
-        "pages": [
-          "contributing/philosophy",
-          "contributing/adding-tools",
-          "contributing/testing"
-        ]
-      },
       "privacy-policy",
       "terms-of-service",
       "security"

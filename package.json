@@ -1,6 +1,6 @@
 {
   "name": "search-console-mcp",
-  "version": "1.14.1",
+  "version": "1.14.2",
   "mcpName": "io.github.saurabhsharma2u/search-console-mcp",
   "description": "MCP server for Google Search Console, Bing Webmaster Tools, and Google Analytics 4",
   "type": "module",
@@ -44,10 +44,10 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^25.9.2",
-    "@vitest/coverage-v8": "^4.1.8",
-    "typedoc": "^0.28.19",
+    "@types/node": "^25.9.5",
+    "@vitest/coverage-v8": "^4.1.10",
+    "typedoc": "^0.28.20",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.10"
   }
 }

@@ -1,0 +1,46 @@
+---
+title: "Package Updates"
+description: "How search-console-mcp checks for and applies version updates."
+---
+
+To ensure you always have access to the latest SEO tools, PageSpeed metrics, and search algorithm rules, `search-console-mcp` handles updates automatically.
+
+---
+
+## Interactive Update Prompts
+
+When running commands directly in an interactive terminal (TTY):
+1. The CLI performs a quick version check in the background.
+2. If a newer version is available on npm, a notice appears:
+   ```text
+   ⚠️ A new version of search-console-mcp is available: v1.15.0 (current: v1.14.1)
+   Press Enter to update automatically, or any other key to continue...
+   ```
+3. Pressing `Enter` automatically triggers `npm install -g search-console-mcp` to update the package, after which the CLI exits so you can restart the tool. Pressing any other key skips the update and runs your command immediately.
+
+---
+
+## Background Update Checking
+
+To prevent network calls from adding latency to every execution, update checks are cached locally for 24 hours. The CLI only queries the npm registry if the cached check has expired, ensuring tool runs remain fast.
+
+---
+
+## Manual Update Command
+
+If you want to force check and apply updates immediately, use the dedicated `update` subcommand:
+
+```bash
+npx search-console-mcp update
+```
+
+---
+
+## Agent-Facing Notifications
+
+When running in MCP Server mode (over standard I/O inside Claude Desktop or Cursor), displaying interactive terminal prompts is disabled to prevent breaking communication protocols. 
+
+Instead, if a new version is available:
+* The server appends a system notice to the bottom of the tool's text response.
+* This notice alerts the AI agent (e.g. Claude) that a newer version is available.
+* The agent can then inform you during your chat session, recommending that you run the `npx search-console-mcp update` command in your terminal.

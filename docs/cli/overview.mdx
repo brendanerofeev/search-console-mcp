@@ -1,0 +1,33 @@
+---
+title: "CLI Overview"
+description: "Exposing MCP tools as first-class CLI commands."
+---
+
+The `search-console-mcp` package isn't just an MCP server — it is also a complete Command Line Interface (CLI) tool. Every single tool registered with the MCP server can be executed directly in your terminal.
+
+## What It Is
+
+The CLI allows you to execute SEO intelligence queries, check sitemap statuses, submit URLs for indexing, and run site diagnostics directly from your command line without needing an MCP client like Claude or Cursor.
+
+## How It Works
+
+The CLI wraps the exact same code and Zod validation schemas used by the MCP server. When you run a tool through the CLI, it parses and validates your flags against the tool's parameters.
+
+### Parity with MCP
+* **Identical Features:** Any feature available to your AI agent via MCP is available to you via the CLI.
+* **Strict Validation:** If a tool requires a `siteUrl` in GSC, the CLI will enforce it and reject invalid inputs.
+
+## Output Formatting
+
+By default, CLI tools print their responses as JSON. You can customize the presentation using the `--format` flag:
+
+* **JSON (default):** Clean, structured JSON output (perfect for pipings or integrations).
+* **CSV:** Outputs arrays as comma-separated values (great for importing into Google Sheets or Excel).
+* **Table:** Renders data as a formatted ASCII grid table, making it highly readable.
+
+---
+
+## Next Steps
+
+* [Commands Reference](/cli/commands) — Explore all interactive subcommands and tool runners.
+* [Auto-Update](/cli/update) — Learn how the update prompt and manual update commands work.

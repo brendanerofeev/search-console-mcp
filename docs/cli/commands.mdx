@@ -1,0 +1,107 @@
+---
+title: "Commands Reference"
+description: "A complete guide to all search-console-mcp CLI commands."
+---
+
+The CLI provides two categories of commands: **Interactive Admin Commands** (for configuration and authentication) and the **Tool Runner** (to run SEO intelligence tools).
+
+---
+
+## Interactive Admin Commands
+
+These commands manage authentication, configuration, and diagnostics.
+
+### `setup`
+Starts the interactive configuration wizard to connect your Google Search Console, Bing Webmaster Tools, or Google Analytics 4 accounts.
+* **What it does:** Opens a browser window for secure OAuth authorization and saves credentials.
+* **Usage:**
+  ```bash
+  npx search-console-mcp setup
+  ```
+
+### `login`
+Triggers the OAuth login flow specifically to authorize a new account.
+* **Usage:**
+  ```bash
+  npx search-console-mcp login
+  ```
+
+### `logout`
+Revokes active OAuth tokens and logs out from all connected Google accounts.
+* **Usage:**
+  ```bash
+  npx search-console-mcp logout
+  ```
+
+### `accounts`
+Manages connected search engine accounts.
+* **Subcommands:**
+  * `list`: Display all authorized Google, Bing, and GA4 accounts along with their associated sites.
+  * `add-site`: Authorize a specific site or domain for an account.
+  * `remove`: Remove a connected account.
+* **Usage:**
+  ```bash
+  npx search-console-mcp accounts list
+  npx search-console-mcp accounts remove --account=user@company.com
+  ```
+
+### `sites`
+A quick shortcut to display all verified sites across all connected accounts.
+* **Usage:**
+  ```bash
+  npx search-console-mcp sites
+  ```
+
+### `diagnostics`
+Runs diagnostic checks to troubleshoot connection errors, quota limits, and API authorization status.
+* **Usage:**
+  ```bash
+  npx search-console-mcp diagnostics
+  ```
+
+### `update`
+Triggers an automated check and updates the `search-console-mcp` package to the latest version.
+* **Usage:**
+  ```bash
+  npx search-console-mcp update
+  ```
+
+---
+
+## Tool Runner Command (`run`)
+
+The `run` subcommand lets you execute any registered MCP tool.
+
+### Syntax
+```bash
+npx search-console-mcp run <tool_name> [options] [--format=json|csv|table]
+```
+
+### Passing Arguments
+CLI arguments correspond directly to the properties defined in each tool's Zod schema. You can pass them in two ways:
+1. **Equals sign:** `--siteUrl=https://example.com`
+2. **Space separated:** `--siteUrl https://example.com`
+
+Boolean flags can be toggled on by passing `--flag` or turned off using `--no-flag` (e.g. `--no-enabled`).
+
+### Formatting Results
+Renders tool outputs in your preferred layout:
+```bash
+# Print as CSV
+npx search-console-mcp run sites_list --engine=google --format=csv
+
+# Print as a clean ASCII table
+npx search-console-mcp run seo_striking_distance --siteUrl=https://example.com --format=table
+```
+
+### Finding Tool Names & Options
+You can list all available tools or inspect options for a single tool by appending `--help`:
+```bash
+# List all executable tools
+npx search-console-mcp run --help
+
+# Show arguments for a specific tool
+npx search-console-mcp run analytics_query --help
+```
+
+To see the detailed schemas and metrics returned by each tool, refer to the **Tools** section in the **MCP Server** tab.
