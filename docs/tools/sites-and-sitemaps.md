@@ -1,39 +1,41 @@
 ---
-title: "Discovery Tools"
-description: "Managing sites and discovery paths."
+title: "Sites & Sitemaps Tools"
+description: "Managing verified site properties and sitemap submissions across search engines."
 ---
 
-Sitemaps are how you tell Google what to crawl. Our sitemap tools give the agent control over how your site is discovered.
+Sites & Sitemaps tools allow your AI agent to discover verified properties, configure multi-account profiles, inspect sitemaps, and submit XML feeds to **Google Search Console and Bing Webmaster Tools**.
 
-## Tool Groups
+## Fluent Domain Tools (v2.0)
 
-### Site Management
-*   `list_sites` (Google) & `bing_sites_list` (Bing): See everything in your account.
-*   `add_site` (Google): Add a new property (Bing relies on imported sites or Verification via other means typically).
-*   `delete_site` (Google): Remove a property.
+### `sites_list`
+Lists verified website properties across search engines concurrently.
+*   **Parameters:** `engine: "all" | "google" | "bing"`.
+*   **Best for:** *"List all verified sites across Google and Bing."*
 
-### Sitemap Management
-*   `list_sitemaps` (Google) & `bing_sitemaps_list` (Bing): See status and error counts.
-*   `submit_sitemap` (Google) & `bing_sitemaps_submit` (Bing): Push a new XML sitemap to the engine.
+### `sites_manage`
+Adds or deletes site properties.
+*   **Parameters:** `action: "add" | "delete"`, `siteUrl`, `engine`.
 
-### Instant Indexing (Bing Only)
-*   `bing_index_now`: Instantly notify Bing and other engines of new, updated, or deleted URLs. Prefer this over sitemaps for time-sensitive content.
+### `accounts_manage`
+Manages multi-account profiles and site-to-account assignments.
+*   **Parameters:** `action: "list" | "add_site" | "remove"`, `accountId`, `siteUrl`.
 
-## Operational Use Cases
+### `sitemaps_list`
+Lists submitted sitemaps, crawl status, and error counts.
+*   **Parameters:** `siteUrl`, `feedUrl` (optional), `engine: "all" | "google" | "bing"`.
 
-### 1. New Site Onboarding
-An agent can automatically list all your properties and run an initial "health check" on each one.
+### `sitemaps_submit`
+Submits a new XML sitemap feed.
+*   **Parameters:** `siteUrl`, `feedUrl`, `engine`.
 
-### 2. Monitoring Errors
-An agent can periodically check `list_sitemaps` to see if Google has reported any "Couldn't fetch" or "Parsing error" statuses.
+### `sitemaps_delete`
+Deletes a sitemap feed.
+*   **Parameters:** `siteUrl`, `feedUrl`, `engine`.
 
-## Example Agent Prompts
+---
 
-#### 1. Checking Sitemap Health
-> "Check the status of all sitemaps for https://example.com. Are there any errors or warnings I should know about?"
+## 🔄 Backward Compatibility Note
 
-#### 2. Discovery Audit
-> "When was the last time the sitemap for https://example.com was crawled? Find any pages that are in the sitemap but not getting indexed."
+All legacy site and sitemap tools (`sites_list`, `bing_sites_list`, `sites_add`, `sites_delete`, `sitemaps_list`, `bing_sitemaps_list`, `sitemaps_get`, `sitemaps_submit`, `sitemaps_delete`) are **100% backward compatible** via our fallback router.
 
-#### 3. New Content Deployment
-> "I just added a new sitemap at https://example.com/products-sitemap.xml. Please submit it to Search Console."
+[Read complete Backward Compatibility Guide →](/concepts/backward-compatibility)
