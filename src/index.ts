@@ -37,6 +37,8 @@ import * as ga4Properties from "./ga4/tools/properties.js";
 import { loadConfig, removeAccount, updateAccount, AccountConfig } from './common/auth/config.js';
 import { resolveAccount, normalizeWebsite } from './common/auth/resolver.js';
 import { getSearchConsoleClient } from './google/client.js';
+import { startSseServer } from "./transport/http.js";
+import { registerMcpResources } from "./resources/index.js";
 import { getBingClient } from './bing/client.js';
 import { limitConcurrency } from './common/concurrency.js';
 import {
@@ -86,10 +88,14 @@ try {
   // Fallback for cases where package.json might not be accessible
 }
 
+
 const server = new McpServer({
   name: "search-console-mcp",
   version: version,
 });
+
+registerPrompts(server);
+registerMcpResources(server);
 
 const registerTool = createToolRegistrar(server, version);
 
@@ -2561,14 +2567,20 @@ async function main() {
     console.error(`\n${colors.dim}${'─'.repeat(64)}${colors.reset}\n`);
   }
 
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
+  const isSseMode = process.argv.includes("--transport=sse") || process.argv.includes("serve");
+  const portArg = process.argv.find((arg) => arg.startsWith("--port="));
+  const port = portArg ? parseInt(portArg.split("=")[1], 10) : 3000;
 
-  const googleStatus = hasGoogle ? `${colors.green}✔ Google${colors.reset}` : `${colors.red}✘ Google${colors.reset}`;
-  const ga4Status = hasGA4 ? `${colors.green}✔ GA4${colors.reset}` : `${colors.red}✘ GA4${colors.reset}`;
-  const bingStatus = hasBing ? `${colors.green}✔ Bing${colors.reset}` : `${colors.red}✘ Bing${colors.reset}`;
-
-  console.error(`Search Console MCP running on stdio [ ${googleStatus} | ${ga4Status} | ${bingStatus} ]`);
+  if (isSseMode) {
+    await startSseServer(server, port);
+  } else {
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
+    const googleStatus = hasGoogle ? `${colors.green}✔ Google${colors.reset}` : `${colors.red}✘ Google${colors.reset}`;
+    const ga4Status = hasGA4 ? `${colors.green}✔ GA4${colors.reset}` : `${colors.red}✘ GA4${colors.reset}`;
+    const bingStatus = hasBing ? `${colors.green}✔ Bing${colors.reset}` : `${colors.red}✘ Bing${colors.reset}`;
+    console.error(`Search Console MCP running on stdio [ ${googleStatus} | ${ga4Status} | ${bingStatus} ]`);
+  }
 }
 
 main().catch((error) => {

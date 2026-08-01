@@ -65,15 +65,39 @@ Access tokens are short-lived and not permanently stored unless necessary.
 
 ---
 
-### 3. No Central Data Collection
+### 3. No Central Data Collection & Zero Telemetry
 
 Search Console MCP:
 
-- Does not operate a backend server
-- Does not transmit user data to the developer
-- Does not collect analytics on user Search Console data
+- Does not operate a backend server or telemetry collector
+- Does not transmit user data or Search Console insights to the developer
+- All API communication occurs directly over HTTPS between the user’s machine and search engine APIs.
 
-All API communication occurs directly between the user’s machine and Google’s APIs.
+---
+
+### 4. Outbound Network & API Transparency (Socket.dev Disclosure)
+
+Search Console MCP makes direct outbound HTTPS requests using native `fetch` (`globalThis.fetch`) exclusively to official endpoints. We maintain a zero-middleman architecture:
+
+| Component | Target Destination Domain | Purpose |
+| :--- | :--- | :--- |
+| **Google Search Console & GA4** | `*.googleapis.com`, `oauth2.googleapis.com` | Fetching Search Console analytics, URL inspection, & GA4 performance data |
+| **Bing Webmaster Tools** | `www.bing.com` | Querying Bing keyword stats, site health checks, & crawl issues |
+| **IndexNow Submissions** | `api.indexnow.org` | Direct notification of updated URLs to search engines |
+| **Structured Data Validation** | `validator.schema.org` | Validating JSON-LD schema syntax |
+| **Update Checker** | `registry.npmjs.org` | Checking for package version updates (results cached locally for 24h) |
+
+---
+
+### 5. Local Process & Shell Execution Policy (Socket.dev Disclosure)
+
+Search Console MCP uses Node's native `child_process` strictly for interactive CLI setup and user-initiated package updates. **No arbitrary user input is ever passed to shell execution**:
+
+| Tool / CLI Script | Executed Command | Purpose & Trigger |
+| :--- | :--- | :--- |
+| **`npx search-console-mcp update`** | `execSync("npm install -g search-console-mcp")` | Upgrades the CLI package to the latest version on npm when confirmed by the user. |
+| **`npx search-console-mcp setup`** | `execSync("git remote get-url origin")` | Auto-detects project repository URL during interactive setup. |
+| **`util_star_repo` tool** | `execAsync("gh repo star ...")` | Optional utility tool allowing users to star the open-source repository via GitHub CLI or browser. |
 
 ---
 

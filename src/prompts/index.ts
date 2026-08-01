@@ -373,4 +373,91 @@ export function registerPrompts(server: McpServer) {
             };
         }
     );
+
+    // ────────────────────────────────────────────────────────────────
+    // 9. v2.0 Fluent MCP Prompts (MCP 2026-07-28 Spec)
+    // ────────────────────────────────────────────────────────────────
+    server.prompt(
+        "seo_traffic_detective",
+        {
+            siteUrl: z.string().describe("Target property URL (e.g., https://example.com)"),
+            days: z.string().optional().describe("Number of days to analyze (default: 30)")
+        },
+        ({ siteUrl, days = "30" }) => ({
+            messages: [{
+                role: "user",
+                content: {
+                    type: "text",
+                    text: `Investigate traffic drops for site "${siteUrl}" over the past ${days} days.\n\n` +
+                        `Please perform the following steps:\n` +
+                        `1. Call 'site_health_check' for "${siteUrl}" to check overall status.\n` +
+                        `2. Call 'analytics_query' to fetch daily time-series performance.\n` +
+                        `3. Check if any traffic drop correlates with known search algorithm updates.\n` +
+                        `4. Identify top affected landing pages and queries and summarize key findings.`
+                }
+            }]
+        })
+    );
+
+    server.prompt(
+        "seo_striking_distance",
+        {
+            siteUrl: z.string().describe("Target property URL (e.g., https://example.com)"),
+            minImpressions: z.string().optional().describe("Minimum impressions threshold (default: 500)")
+        },
+        ({ siteUrl, minImpressions = "500" }) => ({
+            messages: [{
+                role: "user",
+                content: {
+                    type: "text",
+                    text: `Find "striking distance" keyword opportunities for site "${siteUrl}".\n\n` +
+                        `Target queries ranking in positions 8 through 15 with at least ${minImpressions} impressions.\n` +
+                        `1. Call 'seo_audit' with action='striking_distance' for "${siteUrl}".\n` +
+                        `2. Identify top 5 high-potential queries for quick CTR and ranking gains.\n` +
+                        `3. Recommend specific title tag and content optimization improvements for target pages.`
+                }
+            }]
+        })
+    );
+
+    server.prompt(
+        "seo_cannibalization_audit",
+        {
+            siteUrl: z.string().describe("Target property URL (e.g., https://example.com)")
+        },
+        ({ siteUrl }) => ({
+            messages: [{
+                role: "user",
+                content: {
+                    type: "text",
+                    text: `Run a keyword cannibalization audit for site "${siteUrl}".\n\n` +
+                        `1. Call 'seo_audit' with action='cannibalization' for "${siteUrl}".\n` +
+                        `2. List all search queries where two or more URLs are splitting search impressions.\n` +
+                        `3. Provide clear canonicalization or content consolidation recommendations.`
+                }
+            }]
+        })
+    );
+
+    server.prompt(
+        "seo_compare_google_bing",
+        {
+            siteUrl: z.string().describe("Target property URL (e.g., https://example.com)"),
+            days: z.string().optional().describe("Comparison window in days (default: 30)")
+        },
+        ({ siteUrl, days = "30" }) => ({
+            messages: [{
+                role: "user",
+                content: {
+                    type: "text",
+                    text: `Compare search performance for site "${siteUrl}" across Google Search Console and Bing Webmaster Tools for the last ${days} days.\n\n` +
+                        `1. Call 'analytics_query' with engine='all' for site "${siteUrl}".\n` +
+                        `2. Compare total clicks, impressions, and average position on Google vs Bing.\n` +
+                        `3. Highlight queries that perform significantly better on Bing than Google.`
+                }
+            }]
+        })
+    );
 }
+
+export const registerMcpPrompts = registerPrompts;
