@@ -35,6 +35,14 @@
   ],
   "author": "Saurabh Sharma",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/saurabhsharma2u/search-console-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/saurabhsharma2u/search-console-mcp/issues"
+  },
+  "homepage": "https://searchconsolemcp.saurabh.app",
   "dependencies": {
     "@adobe/structured-data-validator": "^1.7.0",
     "@google-analytics/data": "^6.1.0",
