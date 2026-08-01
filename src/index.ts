@@ -86,10 +86,13 @@ try {
   // Fallback for cases where package.json might not be accessible
 }
 
+
 const server = new McpServer({
   name: "search-console-mcp",
   version: version,
 });
+
+registerPrompts(server);
 
 const registerTool = createToolRegistrar(server, version);
 
