@@ -78,19 +78,36 @@ function isNewerVersion(current: string, latest: string): boolean {
   return false;
 }
 
+export function getGlobalUpdateCommand(): string {
+  const userAgent = process.env.npm_config_user_agent || "";
+
+  if (userAgent.startsWith("pnpm")) {
+    return "pnpm add -g search-console-mcp@latest";
+  }
+  if (userAgent.startsWith("bun")) {
+    return "bun add -g search-console-mcp@latest";
+  }
+  if (userAgent.startsWith("yarn")) {
+    return "yarn global add search-console-mcp@latest";
+  }
+  return "npm install -g search-console-mcp@latest";
+}
+
 export async function runUpdateCommand(): Promise<void> {
-  console.log("\nUpdating search-console-mcp to the latest version...");
+  const updateCmd = getGlobalUpdateCommand();
+  console.log(`\nUpdating search-console-mcp to the latest version via '${updateCmd}'...`);
   try {
-    execSync("npm install -g search-console-mcp", { stdio: "inherit" });
+    execSync(updateCmd, { stdio: "inherit" });
     console.log("Update completed successfully! Please restart the tool.");
   } catch (error) {
-    console.error("Update failed. Please run manually: npm install -g search-console-mcp");
+    console.error(`Update failed. Please run manually: ${updateCmd}`);
   }
 }
 
 export async function promptUpdateInteractive(latestVersion: string, currentVersion: string): Promise<void> {
+  const updateCmd = getGlobalUpdateCommand();
   console.log(`\n⚠️  A new version of search-console-mcp is available: v${latestVersion} (current: v${currentVersion})`);
-  console.log("Press Enter to update automatically, or any other key to continue...");
+  console.log(`Press Enter to update automatically via '${updateCmd}', or any other key to continue...`);
 
   return new Promise<void>((resolve) => {
     const rl = readline.createInterface({

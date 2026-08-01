@@ -21,7 +21,7 @@ vi.mock("readline", () => ({
 }));
 
 // Import update utility after child_process and readline mocks are defined
-import { checkVersionCached, promptUpdateInteractive, runUpdateCommand, getAgentUpdateNotice } from "../src/utils/update.js";
+import { checkVersionCached, promptUpdateInteractive, runUpdateCommand, getAgentUpdateNotice, getGlobalUpdateCommand } from "../src/utils/update.js";
 
 describe("Update Utility", () => {
   const cachePath = join(homedir(), ".search-console-mcp-update-cache.json");
@@ -93,9 +93,28 @@ describe("Update Utility", () => {
     expect(info.updateAvailable).toBe(false);
   });
 
+  it("detects the correct package manager command from user agent", () => {
+    const originalEnv = process.env.npm_config_user_agent;
+
+    process.env.npm_config_user_agent = "pnpm/11.17.0 node/v22";
+    expect(getGlobalUpdateCommand()).toBe("pnpm add -g search-console-mcp@latest");
+
+    process.env.npm_config_user_agent = "bun/1.2.0 node/v22";
+    expect(getGlobalUpdateCommand()).toBe("bun add -g search-console-mcp@latest");
+
+    process.env.npm_config_user_agent = "yarn/1.22.22 node/v22";
+    expect(getGlobalUpdateCommand()).toBe("yarn global add search-console-mcp@latest");
+
+    process.env.npm_config_user_agent = "npm/10.9.8 node/v22";
+    expect(getGlobalUpdateCommand()).toBe("npm install -g search-console-mcp@latest");
+
+    process.env.npm_config_user_agent = originalEnv;
+  });
+
   it("runs the update CLI command successfully", async () => {
+    const expectedCmd = getGlobalUpdateCommand();
     await runUpdateCommand();
-    expect(execSync).toHaveBeenCalledWith("npm install -g search-console-mcp", { stdio: "inherit" });
+    expect(execSync).toHaveBeenCalledWith(expectedCmd, { stdio: "inherit" });
     expect(consoleLogMock).toHaveBeenCalledWith(expect.stringContaining("Update completed successfully"));
   });
 
@@ -109,12 +128,13 @@ describe("Update Utility", () => {
   });
 
   it("handles interactive CLI update prompt - positive response", async () => {
+    const expectedCmd = getGlobalUpdateCommand();
     mockQuestion.mockImplementation((_q, callback) => callback(""));
 
     await promptUpdateInteractive("2.0.0", "1.0.0");
     expect(mockQuestion).toHaveBeenCalled();
     expect(mockClose).toHaveBeenCalled();
-    expect(execSync).toHaveBeenCalledWith("npm install -g search-console-mcp", { stdio: "inherit" });
+    expect(execSync).toHaveBeenCalledWith(expectedCmd, { stdio: "inherit" });
   });
 
   it("handles interactive CLI update prompt - ignored response", async () => {

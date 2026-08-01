@@ -13,12 +13,18 @@ This project aims to provide a secure, minimal, AI-friendly interface to Google 
 3. Install dependencies
 
 ```bash
-npm install
+pnpm install
 ```
 
-4. Run in development mode
+4. Build the project
 ```bash
-npm run dev
+pnpm run build
+```
+
+5. Run test suite & live API tests
+```bash
+pnpm test
+pnpm test:live
 ```
 ---
 
@@ -43,8 +49,9 @@ If adding new tools:
 
 Before submitting a PR:
 
-- Ensure code compiles (`npm run build`)
-- Ensure tests pass (`npm test`)
+- Ensure code compiles (`pnpm run build`)
+- Ensure unit tests pass (`pnpm test`)
+- Ensure live tests function cleanly (`pnpm test:live`)
 - Keep changes focused and minimal
 - Add documentation updates if relevant
 
