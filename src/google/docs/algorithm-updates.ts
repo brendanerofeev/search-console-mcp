@@ -1,4 +1,3 @@
-
 export const algorithmUpdatesDocs = `
 # Google Algorithm Updates Reference
 
@@ -8,11 +7,13 @@ The \`analytics_drop_attribution\` tool correlates traffic drops with major know
 
 | Date | Update Name | Impact Area |
 |------|-------------|-------------|
-| 2026-02-05 | February 2026 Discover Core Update | Discover Feed |
-| 2026-03-24 | March 2026 Spam Update | Spam / Content Quality |
-| 2026-03-27 | March 2026 Core Update | General Ranking |
-| 2026-05-21 | May 2026 Core Update | General Ranking |
 | 2026-06-24 | June 2026 Spam Update | Spam / Content Quality |
+| 2026-06-15 | Back Button Hijacking (Spam Policy Update) | UX / Deceptive Redirects |
+| 2026-05-21 | May 2026 Core Update | General Ranking |
+| 2026-04-10 | Generative AI Manipulation (Spam Policy Update) | AI Search / Overviews |
+| 2026-03-27 | March 2026 Core Update | General Ranking |
+| 2026-03-24 | March 2026 Spam Update | Spam / Content Quality |
+| 2026-02-05 | February 2026 Discover Core Update | Discover Feed |
 
 ## 2025
 
@@ -61,7 +62,7 @@ The \`analytics_drop_attribution\` tool correlates traffic drops with major know
 | 2022-09-12 | September 2022 Core Update | General Ranking |
 
 ## How Attribution Works
-When a traffic drop is detected, the system checks if it occurred within **+/- 2 days** of any of these dates. If it matches, the update is flagged as a potential primary cause of the drop.
+When a traffic drop is detected, the system checks if it occurred within **+/- 3 days** of any of these dates. If it matches, the update is flagged as a potential primary cause of the drop.
 `;
 
 export default algorithmUpdatesDocs;

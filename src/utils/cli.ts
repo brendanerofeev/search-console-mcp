@@ -64,8 +64,26 @@ export async function runCli(argv = process.argv): Promise<number> {
   }
 
   const toolName = args[0];
-  const tool = toolsRegistry.get(toolName);
+  let tool = toolsRegistry.get(toolName);
   if (!tool) {
+    const { legacyFallbackMap, executeLegacyFallback } = await import("../legacy/fallback-router.js");
+    if (legacyFallbackMap[toolName]) {
+      const { values, format } = parseArgs(args.slice(1), {});
+      try {
+        const result = await executeLegacyFallback(toolName, values);
+        const isError = !!result?.isError;
+        const unwrapped = unwrapMcpResult(result);
+        if (isError) {
+          console.error(typeof unwrapped === "string" ? unwrapped : JSON.stringify(unwrapped, null, 2));
+          return 1;
+        }
+        printFormatted(unwrapped, format);
+        return 0;
+      } catch (error) {
+        console.error(`Error executing tool: ${error instanceof Error ? error.message : String(error)}`);
+        return 1;
+      }
+    }
     console.error(`Unknown tool: ${toolName}\n`);
     printRunHelp();
     return 1;

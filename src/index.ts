@@ -62,6 +62,16 @@ import { jsonToCsv } from "./common/utils/csv.js";
 import { runDiagnostics } from "./common/diagnostics.js";
 import { logger } from "./utils/logger.js";
 import { createToolRegistrar, isCliRun, runCli } from "./utils/cli.js";
+import * as sitesFluent from "./tools/fluent/sites.js";
+import * as sitemapsFluent from "./tools/fluent/sitemaps.js";
+import * as analyticsFluent from "./tools/fluent/analytics.js";
+import * as inspectionFluent from "./tools/fluent/inspection.js";
+import * as indexingFluent from "./tools/fluent/indexing.js";
+import * as seoFluent from "./tools/fluent/seo.js";
+import * as healthFluent from "./tools/fluent/health.js";
+import { executeLegacyFallback, legacyFallbackMap } from "./legacy/fallback-router.js";
+import { CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -91,548 +101,271 @@ registerTool(
   getStartedHandler
 );
 
-// Sites Tools
+// --- Fluent Domain Tools (~22 Core Tools) ---
+
+// 1. Sites & Accounts Management
 registerTool(
   "sites_list",
-  "List all verified sites or properties across all authorized accounts",
-  { engine: z.enum(["google", "bing", "ga4"]).optional().describe("The search engine (default: google)") },
-  async ({ engine = "google" }) => {
-    try {
-      const config = await loadConfig();
-      const accounts = Object.values(config.accounts).filter(a => a.engine === engine);
-
-      if (accounts.length === 0 && engine === 'bing' && process.env.BING_API_KEY) {
-        // Fallback for legacy Bing
-        const results = await bingSites.listSites();
-        return { content: [{ type: "text", text: JSON.stringify(results, null, 2) }] };
-      }
-
-      const allResults = await limitConcurrency(accounts, 5, async (account) => {
-        try {
-          let results: any[];
-          if (engine === "google") {
-            results = await sites.listSites(account.id);
-          } else if (engine === "bing") {
-            results = await bingSites.listSites(account.id);
-          } else if (engine === "ga4") {
-            results = await ga4Properties.listProperties(account.id);
-          } else {
-            results = [];
-          }
-
-          const rawCount = results.length;
-          // Boundary Filtering: Honor the website in the config
-          if (account.websites && account.websites.length > 0) {
-            results = results.filter(site => {
-              const url = engine === "ga4" ? (site.propertyId) : (site.siteUrl || (site as any).Url);
-              if (!url) return false;
-
-              // If it's a numeric property ID (GA4), check direct inclusion
-              if (engine === "ga4" && /^\d+$/.test(url)) {
-                return account.websites!.includes(url);
-              }
-
-              try {
-                const normalizedSite = normalizeWebsite(url).value;
-                const isMatch = account.websites!.some(w => normalizeWebsite(w).value === normalizedSite);
-                if (!isMatch) {
-                  logger.debug(`Filtered out site ${url} for account ${account.alias} (not in whitelist)`);
-                }
-                return isMatch;
-              } catch {
-                return account.websites!.includes(url);
-              }
-            });
-            logger.debug(`Account ${account.alias}: ${results.length}/${rawCount} sites kept after filtering.`);
-          } else {
-            logger.debug(`Account ${account.alias}: Found ${results.length} sites (no filtering).`);
-          }
-
-          return {
-            account: account.alias,
-            accountId: account.id,
-            sites: results
-          };
-        } catch (e) {
-          logger.error(`Failed to list sites for account ${account.alias}:`, (e as Error).message);
-          return {
-            account: account.alias,
-            accountId: account.id,
-            error: (e as Error).message
-          };
-        }
-      });
-
-      return {
-        content: [{ type: "text", text: JSON.stringify(allResults, null, 2) }]
-      };
-    } catch (error) {
-      return formatError(error);
-    }
-  }
+  "List verified web properties across Google Search Console, Bing Webmaster Tools, or GA4.",
+  { engine: z.enum(["google", "bing", "all"]).optional().describe("Target search engine (default: all)") },
+  sitesFluent.sitesListHandler
 );
 
 registerTool(
-  "bing_seo_cannibalization",
-  "Detect pages competing for the same query in Bing.",
+  "sites_manage",
+  "Add or delete a web property from Google Search Console or Bing Webmaster Tools.",
   {
-    siteUrl: z.string().describe("The URL of the site"),
-    minImpressions: z.number().optional().describe("Minimum impressions threshold (default 50)")
+    action: z.enum(["add", "delete"]).describe("Action to perform"),
+    siteUrl: z.string().describe("The site property URL"),
+    engine: z.enum(["google", "bing", "all"]).optional().describe("Target search engine (default: all)")
   },
-  async ({ siteUrl, minImpressions }) => {
-    try {
-      const results = await bingSeoInsights.detectCannibalization(siteUrl, { minImpressions });
-      return {
-        content: [{ type: "text", text: JSON.stringify(results, null, 2) }]
-      };
-    } catch (error) {
-      return formatError(error);
-    }
-  }
+  sitesFluent.sitesManageHandler
 );
 
 registerTool(
-  "bing_seo_lost_queries",
-  "Identify queries that lost significant traffic on Bing compared to the previous period.",
+  "accounts_manage",
+  "Manage Google Search Console service accounts and site permissions.",
   {
-    siteUrl: z.string().describe("The URL of the site"),
-    days: z.number().optional().describe("Lookback period in days (default 28)")
+    action: z.enum(["list", "add_site", "remove"]).describe("Account action"),
+    accountId: z.string().optional().describe("Account ID for add_site or remove"),
+    siteUrl: z.string().optional().describe("Site URL to add to account"),
+    email: z.string().optional().describe("Optional email filter")
   },
-  async ({ siteUrl, days }) => {
-    try {
-      const results = await bingSeoInsights.findLostQueries(siteUrl, { days });
-      return {
-        content: [{ type: "text", text: JSON.stringify(results, null, 2) }]
-      };
-    } catch (error) {
-      return formatError(error);
-    }
-  }
+  sitesFluent.accountsManageHandler
 );
 
-registerTool(
-  "bing_brand_analysis",
-  "Analyze Brand vs Non-Brand performance on Bing.",
-  {
-    siteUrl: z.string().describe("The URL of the site"),
-    brandRegex: z.string().describe("Regex matching brand terms (e.g. 'acme|acmecorp')"),
-    days: z.number().optional().describe("Number of days to analyze (default 28)")
-  },
-  async ({ siteUrl, brandRegex, days }) => {
-    try {
-      const results = await bingSeoInsights.analyzeBrandVsNonBrand(siteUrl, brandRegex, { days });
-      return {
-        content: [{ type: "text", text: JSON.stringify(results, null, 2) }]
-      };
-    } catch (error) {
-      return formatError(error);
-    }
-  }
-);
-
-registerTool(
-  "bing_analytics_trends",
-  "Detect rising or declining trends in Bing query performance",
-  {
-    siteUrl: z.string().describe("The URL of the site"),
-    days: z.number().optional().describe("Number of days to analyze (default 28)"),
-    threshold: z.number().optional().describe("Minimum percentage change (default 10)"),
-    minClicks: z.number().optional().describe("Minimum clicks required (default 100)")
-  },
-  async ({ siteUrl, days, threshold, minClicks }) => {
-    try {
-      const results = await bingAnalytics.detectTrends(siteUrl, { days, threshold, minClicks });
-      return {
-        content: [{ type: "text", text: JSON.stringify(results, null, 2) }]
-      };
-    } catch (error) {
-      return formatError(error);
-    }
-  }
-);
-
-registerTool(
-  "sites_add",
-  "Add a new site to Search Console or Bing Webmaster Tools",
-  {
-    siteUrl: z.string().describe("The URL of the site to add"),
-    engine: z.enum(["google", "bing"]).optional().describe("The search engine (default: google)")
-  },
-  async ({ siteUrl, engine = "google" }) => {
-    try {
-      const result = engine === "google" ? await sites.addSite(siteUrl) : await bingSites.addSite(siteUrl);
-      return {
-        content: [{ type: "text", text: result }]
-      };
-    } catch (error) {
-      return formatError(error);
-    }
-  }
-);
-
-registerTool(
-  "sites_delete",
-  "Remove a site from Search Console or Bing Webmaster Tools",
-  {
-    siteUrl: z.string().describe("The URL of the site to delete"),
-    engine: z.enum(["google", "bing"]).optional().describe("The search engine (default: google)")
-  },
-  async ({ siteUrl, engine = "google" }) => {
-    try {
-      const result = engine === "google" ? await sites.deleteSite(siteUrl) : await bingSites.removeSite(siteUrl);
-      return {
-        content: [{ type: "text", text: result }]
-      };
-    } catch (error) {
-      return formatError(error);
-    }
-  }
-);
-
-registerTool(
-  "sites_get",
-  "Get information about a specific site",
-  { siteUrl: z.string().describe("The URL of the site") },
-  async ({ siteUrl }) => {
-    try {
-      const result = await sites.getSite(siteUrl);
-      return {
-        content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
-      };
-    } catch (error) {
-      return formatError(error);
-    }
-  }
-);
-
-registerTool(
-  "sites_health_check",
-  "Run a health check on one or all verified sites. Checks performance trends and status.",
-  {
-    siteUrl: z.string().optional().describe("Optional. The URL of a specific site to check."),
-    engine: z.enum(["google", "bing"]).optional().describe("The search engine (default: google)")
-  },
-  async ({ siteUrl, engine = "google" }) => {
-    try {
-      const result = engine === "google"
-        ? await sitesHealth.healthCheck(siteUrl)
-        : await bingHealth.healthCheck(siteUrl);
-      return {
-        content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
-      };
-    } catch (error) {
-      return formatError(error);
-    }
-  }
-);
-
-// Sitemaps Tools
+// 2. Sitemaps Management
 registerTool(
   "sitemaps_list",
-  "List sitemaps for a site",
+  "List submitted XML sitemaps and status for a site.",
   {
-    siteUrl: z.string().describe("The URL of the site"),
-    engine: z.enum(["google", "bing"]).optional().describe("The search engine (default: google)")
+    siteUrl: z.string().describe("The site property URL"),
+    feedUrl: z.string().optional().describe("Optional specific sitemap feed URL"),
+    engine: z.enum(["google", "bing", "all"]).optional().describe("Target search engine (default: all)")
   },
-  async ({ siteUrl, engine = "google" }) => {
-    try {
-      const results = engine === "google" ? await sitemaps.listSitemaps(siteUrl) : await bingSitemaps.listSitemaps(siteUrl);
-      return {
-        content: [{ type: "text", text: JSON.stringify(results, null, 2) }]
-      };
-    } catch (error) {
-      return formatError(error);
-    }
-  }
-);
-
-registerTool(
-  "sitemaps_get",
-  "Get details about a specific sitemap",
-  {
-    siteUrl: z.string().describe("The URL of the site"),
-    feedpath: z.string().describe("The URL of the sitemap")
-  },
-  async ({ siteUrl, feedpath }) => {
-    try {
-      const result = await sitemaps.getSitemap(siteUrl, feedpath);
-      return {
-        content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
-      };
-    } catch (error) {
-      return formatError(error);
-    }
-  }
+  sitemapsFluent.sitemapsListHandler
 );
 
 registerTool(
   "sitemaps_submit",
-  "Submit a sitemap to Search Console or Bing Webmaster Tools",
+  "Submit a new XML sitemap to Google Search Console and/or Bing Webmaster Tools.",
   {
-    siteUrl: z.string().describe("The URL of the site"),
-    feedpath: z.string().describe("The URL of the sitemap"),
-    engine: z.enum(["google", "bing"]).optional().describe("The search engine (default: google)")
+    siteUrl: z.string().describe("The site property URL"),
+    feedUrl: z.string().describe("The XML sitemap feed URL to submit"),
+    engine: z.enum(["google", "bing", "all"]).optional().describe("Target search engine (default: all)")
   },
-  async ({ siteUrl, feedpath, engine = "google" }) => {
-    try {
-      const result = engine === "google" ? await sitemaps.submitSitemap(siteUrl, feedpath) : await bingSitemaps.submitSitemap(siteUrl, feedpath);
-      return {
-        content: [{ type: "text", text: result }]
-      };
-    } catch (error) {
-      return formatError(error);
-    }
-  }
+  sitemapsFluent.sitemapsSubmitHandler
 );
 
 registerTool(
   "sitemaps_delete",
-  "Delete a sitemap from Search Console or Bing Webmaster Tools",
+  "Delete a sitemap from Google Search Console or Bing Webmaster Tools.",
   {
-    siteUrl: z.string().describe("The URL of the site"),
-    feedpath: z.string().describe("The URL of the sitemap"),
-    engine: z.enum(["google", "bing"]).optional().describe("The search engine (default: google)")
+    siteUrl: z.string().describe("The site property URL"),
+    feedUrl: z.string().describe("The sitemap feed URL to delete"),
+    engine: z.enum(["google", "bing", "all"]).optional().describe("Target search engine (default: all)")
   },
-  async ({ siteUrl, feedpath, engine = "google" }) => {
-    try {
-      const result = engine === "google" ? await sitemaps.deleteSitemap(siteUrl, feedpath) : await bingSitemaps.deleteSitemap(siteUrl, feedpath);
-      return {
-        content: [{ type: "text", text: result }]
-      };
-    } catch (error) {
-      return formatError(error);
-    }
-  }
+  sitemapsFluent.sitemapsDeleteHandler
 );
 
-// Analytics Tools
+// 3. Unified Search Analytics
 registerTool(
   "analytics_query",
-  "Query search analytics data with optional pagination",
+  "Unified search performance query replacing single-dimension tools. Supports queries, pages, countries, devices, and search appearances.",
   {
-    siteUrl: z.string().describe("The URL of the site"),
-    startDate: z.string().describe("Start date (YYYY-MM-DD)"),
-    endDate: z.string().describe("End date (YYYY-MM-DD)"),
-    dimensions: z.array(z.string()).optional().describe("Dimensions to group by (date, query, page, country, device, searchAppearance)"),
-    type: z.enum(["web", "image", "video", "news", "discover", "googleNews"]).optional().describe("Search type (default: web)"),
-    aggregationType: z.enum(["auto", "byProperty", "byPage"]).optional().describe("How to aggregate data (default: auto)"),
-    dataState: z.enum(["final", "all"]).optional().describe("Include fresh data? 'all' includes fresh (preliminary) data (default: final)"),
-    limit: z.number().optional().describe("Max rows to return (default: 1000)"),
-    startRow: z.number().optional().describe("Starting row for pagination (0-based)"),
-    filters: z.array(z.object({
-      dimension: z.string(),
-      operator: z.string(),
-      expression: z.string()
-    })).optional().describe("Filters (dimension: query/page/country/device, operator: equals/contains/notContains/includingRegex/excludingRegex)"),
-    format: z.enum(["json", "csv"]).optional().describe("Output format (default: json)")
+    siteUrl: z.string().describe("The site property URL"),
+    startDate: z.string().optional().describe("Start date YYYY-MM-DD"),
+    endDate: z.string().optional().describe("End date YYYY-MM-DD"),
+    dimensions: z.array(z.string()).optional().describe("Dimensions: query, page, country, device, searchAppearance, date"),
+    filters: z.array(z.any()).optional().describe("Filter objects"),
+    rowLimit: z.number().optional().describe("Row limit"),
+    engine: z.enum(["google", "bing", "all"]).optional().describe("Target search engine (default: all)")
   },
-  async (args) => {
-    try {
-      const result = await analytics.queryAnalytics(args);
-
-      if (args.format === 'csv') {
-        const flatData = result.map(row => {
-          const newRow: any = { ...row };
-          if (row.keys && Array.isArray(row.keys)) {
-            row.keys.forEach((keyVal, idx) => {
-              const dimName = args.dimensions && args.dimensions[idx]
-                ? args.dimensions[idx]
-                : `dimension_${idx + 1}`;
-              newRow[dimName] = keyVal;
-            });
-            delete newRow.keys;
-          }
-          return newRow;
-        });
-        return {
-          content: [{ type: "text", text: jsonToCsv(flatData) }]
-        };
-      }
-
-      return {
-        content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
-      };
-    } catch (error) {
-      return formatError(error);
-    }
-  }
+  analyticsFluent.analyticsQueryHandler
 );
 
 registerTool(
-  "analytics_performance_summary",
-  "Get the aggregate performance metrics (clicks, impressions, CTR, position) for the last N days.",
+  "analytics_compare",
+  "Period-over-period search performance comparisons, trends, and traffic drop attributions.",
   {
-    siteUrl: z.string().describe("The URL of the site"),
-    days: z.number().optional().describe("Number of days to look back (default: 28)"),
-    engine: z.enum(["google", "bing"]).optional().describe("The search engine (default: google)")
+    siteUrl: z.string().describe("The site property URL"),
+    mode: z.enum(["period_over_period", "trends", "drop_attribution"]).optional().describe("Comparison mode"),
+    startDate: z.string().optional().describe("Start date YYYY-MM-DD"),
+    endDate: z.string().optional().describe("End date YYYY-MM-DD"),
+    compareStartDate: z.string().optional().describe("Comparison start date"),
+    compareEndDate: z.string().optional().describe("Comparison end date"),
+    engine: z.enum(["google", "bing", "all"]).optional().describe("Target search engine (default: all)")
   },
-  async ({ siteUrl, days, engine = "google" }) => {
-    try {
-      const result = engine === "google"
-        ? await analytics.getPerformanceSummary(siteUrl, days)
-        : await bingAnalytics.getPerformanceSummary(siteUrl, days);
-      return {
-        content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
-      };
-    } catch (error) {
-      return formatError(error);
-    }
-  }
+  analyticsFluent.analyticsCompareHandler
 );
 
 registerTool(
-  "analytics_compare_periods",
-  "Compare performance metrics between two date periods. Useful for week-over-week or month-over-month analysis.",
+  "analytics_anomalies",
+  "Detect search traffic anomalies across Google and Bing.",
   {
-    siteUrl: z.string().describe("The URL of the site"),
-    period1Start: z.string().describe("Start date of first (current) period (YYYY-MM-DD)"),
-    period1End: z.string().describe("End date of first (current) period (YYYY-MM-DD)"),
-    period2Start: z.string().describe("Start date of second (comparison) period (YYYY-MM-DD)"),
-    period2End: z.string().describe("End date of second (comparison) period (YYYY-MM-DD)")
+    siteUrl: z.string().describe("The site property URL"),
+    startDate: z.string().optional().describe("Start date YYYY-MM-DD"),
+    endDate: z.string().optional().describe("End date YYYY-MM-DD"),
+    threshold: z.number().optional().describe("Sensitivity threshold"),
+    engine: z.enum(["google", "bing", "all"]).optional().describe("Target search engine (default: all)")
   },
-  async ({ siteUrl, period1Start, period1End, period2Start, period2End }) => {
-    try {
-      const result = await analytics.comparePeriods(siteUrl, period1Start, period1End, period2Start, period2End);
-      return {
-        content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
-      };
-    } catch (error) {
-      return formatError(error);
-    }
-  }
+  analyticsFluent.analyticsAnomaliesHandler
+);
+
+registerTool(
+  "analytics_advanced",
+  "Google Analytics 4 (GA4) e-commerce, realtime metrics, user behavior, and conversion funnels.",
+  {
+    propertyId: z.string().describe("GA4 Property ID"),
+    metricType: z.enum(["ecommerce", "realtime", "user_behavior", "audience_segments", "conversion_funnel"]).describe("Metric type"),
+    startDate: z.string().optional().describe("Start date YYYY-MM-DD"),
+    endDate: z.string().optional().describe("End date YYYY-MM-DD")
+  },
+  analyticsFluent.analyticsAdvancedHandler
+);
+
+// 4. URL Inspection & PageSpeed
+registerTool(
+  "inspection_inspect",
+  "Inspect indexing, canonical, and crawl status for single or batch URLs on Google or Bing.",
+  {
+    siteUrl: z.string().describe("The site property URL"),
+    urls: z.array(z.string()).describe("List of URLs to inspect"),
+    engine: z.enum(["google", "bing", "all"]).optional().describe("Target search engine (default: all)")
+  },
+  inspectionFluent.inspectionInspectHandler
+);
+
+registerTool(
+  "pagespeed_analyze",
+  "Run PageSpeed Insights & Core Web Vitals performance analysis for a page.",
+  {
+    url: z.string().describe("The URL to analyze"),
+    strategy: z.enum(["mobile", "desktop"]).optional().describe("Device strategy"),
+    category: z.array(z.string()).optional().describe("Lighthouse categories"),
+    cwvOnly: z.boolean().optional().describe("Return Core Web Vitals metrics only")
+  },
+  inspectionFluent.pagespeedAnalyzeHandler
+);
+
+// 5. Indexing & URL Submission
+registerTool(
+  "indexing_submit",
+  "Submit URL(s) for indexing via Google Indexing API, Bing URL submission, or IndexNow protocol.",
+  {
+    siteUrl: z.string().optional().describe("The site property URL"),
+    urls: z.array(z.string()).describe("List of URLs to submit"),
+    method: z.enum(["standard", "index_now", "remove"]).optional().describe("Submission method (default: standard)"),
+    engine: z.enum(["google", "bing", "all"]).optional().describe("Target search engine (default: google)"),
+    host: z.string().optional().describe("Host for IndexNow submission"),
+    key: z.string().optional().describe("Key for IndexNow submission"),
+    keyLocation: z.string().optional().describe("Key location URL for IndexNow")
+  },
+  indexingFluent.indexingSubmitHandler
+);
+
+registerTool(
+  "indexing_status",
+  "Check notification status for Google Indexing API or remaining daily Bing submission quota.",
+  {
+    siteUrl: z.string().describe("The site property URL"),
+    url: z.string().optional().describe("URL to check status for"),
+    type: z.enum(["status", "quota"]).optional().describe("Check type (default: status)"),
+    engine: z.enum(["google", "bing", "all"]).optional().describe("Target search engine")
+  },
+  indexingFluent.indexingStatusHandler
+);
+
+// 6. SEO Intelligence & Audit
+registerTool(
+  "seo_audit",
+  "Specialized SEO intelligence analysis (recommendations, quick wins, cannibalization, striking distance, lost queries, low CTR, brand vs nonbrand).",
+  {
+    siteUrl: z.string().describe("The site property URL"),
+    type: z.enum(["recommendations", "quick_wins", "low_hanging_fruit", "cannibalization", "striking_distance", "lost_queries", "low_ctr", "brand_vs_nonbrand"]).describe("Audit analysis type"),
+    brandKeywords: z.array(z.string()).optional().describe("Brand keywords for brand_vs_nonbrand analysis"),
+    minImpressions: z.number().optional().describe("Minimum impressions threshold"),
+    engine: z.enum(["google", "bing", "all"]).optional().describe("Target search engine (default: all)")
+  },
+  seoFluent.seoAuditHandler
+);
+
+registerTool(
+  "seo_keywords_research",
+  "Keyword performance stats, related query expansion, and search volume estimates.",
+  {
+    siteUrl: z.string().optional().describe("The site property URL"),
+    keywords: z.array(z.string()).describe("Keywords to analyze"),
+    country: z.string().optional().describe("Country code"),
+    language: z.string().optional().describe("Language code"),
+    type: z.enum(["stats", "related", "traffic"]).optional().describe("Analysis type")
+  },
+  seoFluent.seoKeywordsResearchHandler
+);
+
+registerTool(
+  "schema_validate",
+  "Validate structured data (JSON-LD, Microdata, RDFa) for a given webpage URL.",
+  { url: z.string().describe("The webpage URL to validate structured markup for") },
+  seoFluent.schemaValidateHandler
+);
+
+// 7. Diagnostics & Cross-Engine Workflows
+registerTool(
+  "site_health_check",
+  "Comprehensive health audit across Google Search Console and Bing Webmaster Tools.",
+  {
+    siteUrl: z.string().optional().describe("Optional specific site URL"),
+    level: z.enum(["summary", "full", "crawl_issues"]).optional().describe("Health check depth"),
+    engine: z.enum(["google", "bing", "all"]).optional().describe("Target search engine (default: all)")
+  },
+  healthFluent.siteHealthCheckHandler
 );
 
 registerTool(
   "compare_engines",
-  "Compare performance data between Google and Bing for a specific dimension (query, page, etc).",
+  "Cross-engine performance matrix comparing Google Search Console vs Bing Webmaster Tools.",
   {
-    siteUrl: z.string().describe("The URL of the site"),
-    dimension: z.enum(["query", "page", "country", "device"]).describe("Dimension to compare"),
-    startDate: z.string().describe("Start date (YYYY-MM-DD)"),
-    endDate: z.string().describe("End date (YYYY-MM-DD)"),
-    minImpressions: z.number().optional().describe("Minimum impressions threshold"),
-    minClicks: z.number().optional().describe("Minimum clicks threshold"),
-    limit: z.number().optional().describe("Max rows to return per engine (default: 1000)"),
-    offset: z.number().optional().describe("Offset for pagination")
+    siteUrl: z.string().describe("The site property URL"),
+    startDate: z.string().optional().describe("Start date YYYY-MM-DD"),
+    endDate: z.string().optional().describe("End date YYYY-MM-DD"),
+    dimension: z.enum(["query", "page"]).optional().describe("Comparison dimension"),
+    limit: z.number().optional().describe("Result row limit")
   },
-  async (args) => {
+  healthFluent.compareEnginesHandler
+);
+
+registerPrompts(server);
+
+registerTool(
+  "diagnostics",
+  "Run connectivity diagnostics for all connected accounts. Use this to troubleshoot '0 results' or authentication issues.",
+  {},
+  async () => {
     try {
-      const result = await compareEnginesTool.compareEngines(args);
-      return {
-        content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
-      };
+      const results = await runDiagnostics();
+      return { content: [{ type: "text", text: JSON.stringify(results, null, 2) }] };
     } catch (error) {
       return formatError(error);
     }
   }
 );
 
-registerTool(
-  "analytics_top_queries",
-  "Get top search queries by clicks or impressions for the last N days.",
-  {
-    siteUrl: z.string().describe("The URL of the site"),
-    days: z.number().optional().describe("Number of days to look back (default: 28)"),
-    limit: z.number().optional().describe("Number of top queries to return (default: 10)"),
-    sortBy: z.enum(["clicks", "impressions"]).optional().describe("Sort by clicks or impressions (default: clicks)")
-  },
-  async ({ siteUrl, days, limit, sortBy }) => {
-    try {
-      const result = await analytics.getTopQueries(siteUrl, { days, limit, sortBy });
-      return {
-        content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
-      };
-    } catch (error) {
-      return formatError(error);
-    }
+// Internal silent fallback router interceptor for CallTool requests
+(server.server as any).setRequestHandler(CallToolRequestSchema, async (request: any, extra: any) => {
+  const toolName = request.params.name;
+  if (legacyFallbackMap[toolName]) {
+    const legacyResult = await executeLegacyFallback(toolName, request.params.arguments);
+    if (legacyResult) return legacyResult;
   }
-);
+  const registeredTool = (server as any)._registeredTools[toolName];
+  if (!registeredTool) {
+    throw new Error(`Tool ${toolName} not found`);
+  }
+  return await registeredTool.handler(request.params.arguments);
+});
 
-registerTool(
-  "analytics_top_pages",
-  "Get top performing pages by clicks or impressions for the last N days.",
-  {
-    siteUrl: z.string().describe("The URL of the site"),
-    days: z.number().optional().describe("Number of days to look back (default: 28)"),
-    limit: z.number().optional().describe("Number of top pages to return (default: 10)"),
-    sortBy: z.enum(["clicks", "impressions"]).optional().describe("Sort by clicks or impressions (default: clicks)")
-  },
-  async ({ siteUrl, days, limit, sortBy }) => {
-    try {
-      const result = await analytics.getTopPages(siteUrl, { days, limit, sortBy });
-      return {
-        content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
-      };
-    } catch (error) {
-      return formatError(error);
-    }
-  }
-);
-
-registerTool(
-  "analytics_by_country",
-  "Get performance breakdown by country for the last N days.",
-  {
-    siteUrl: z.string().describe("The URL of the site"),
-    days: z.number().optional().describe("Number of days to look back (default: 28)"),
-    limit: z.number().optional().describe("Number of countries to return (default: 250)"),
-    sortBy: z.enum(["clicks", "impressions"]).optional().describe("Sort by clicks or impressions (default: clicks)")
-  },
-  async ({ siteUrl, days, limit, sortBy }) => {
-    try {
-      const result = await analytics.getPerformanceByCountry(siteUrl, { days, limit, sortBy });
-      return {
-        content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
-      };
-    } catch (error) {
-      return formatError(error);
-    }
-  }
-);
-
-registerTool(
-  "analytics_search_appearance",
-  "Get performance breakdown by search appearance type for the last N days.",
-  {
-    siteUrl: z.string().describe("The URL of the site"),
-    days: z.number().optional().describe("Number of days to look back (default: 28)"),
-    limit: z.number().optional().describe("Number of types to return (default: 50)"),
-    sortBy: z.enum(["clicks", "impressions"]).optional().describe("Sort by clicks or impressions (default: clicks)")
-  },
-  async ({ siteUrl, days, limit, sortBy }) => {
-    try {
-      const result = await analytics.getPerformanceBySearchAppearance(siteUrl, { days, limit, sortBy });
-      return {
-        content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
-      };
-    } catch (error) {
-      return formatError(error);
-    }
-  }
-);
-
-registerTool(
-  "analytics_trends",
-  "Detect traffic trends (rising/declining) for queries or pages.",
-  {
-    siteUrl: z.string().describe("The URL of the site"),
-    dimension: z.enum(["query", "page"]).optional().describe("Dimension to analyze (default: query)"),
-    days: z.number().optional().describe("Number of days to analyze (default: 28)"),
-    threshold: z.number().optional().describe("Minimum percentage change to consider (default: 10)"),
-    minClicks: z.number().optional().describe("Minimum clicks required to be considered (default: 100)"),
-    limit: z.number().optional().describe("Max results to return (default: 20)")
-  },
-  async ({ siteUrl, dimension, days, threshold, minClicks, limit }) => {
-    try {
-      const result = await analytics.detectTrends(siteUrl, { dimension, days, threshold, minClicks, limit });
-      return {
-        content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
-      };
-    } catch (error) {
-      return formatError(error);
-    }
-  }
-);
+registerPrompts(server);
 
 registerTool(
   "analytics_anomalies",
