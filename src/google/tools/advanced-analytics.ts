@@ -25,7 +25,7 @@ export interface DropAttribution {
 /**
  * Historical Google Algorithm Update dates (recent notable ones)
  */
-const ALGORITHM_UPDATES = [
+export const ALGORITHM_UPDATES = [
     // 2022
     { date: '2022-09-12', name: 'September 2022 Core Update' },
     { date: '2022-09-20', name: 'September 2022 Product Review Update' },

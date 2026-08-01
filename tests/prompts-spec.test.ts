@@ -29,7 +29,7 @@ describe("Native MCP Prompts (MCP 2026-07-28 Spec)", () => {
     const call = mockServer.prompt.mock.calls.find((c: any) => c[0] === "seo_traffic_detective");
     expect(call).toBeDefined();
 
-    const handler = call[2];
+    const handler = call![2];
     const result = handler({ siteUrl: "https://example.com", days: "14" });
     expect(result.messages).toHaveLength(1);
     expect(result.messages[0].content.text).toContain("https://example.com");
@@ -45,7 +45,9 @@ describe("Native MCP Prompts (MCP 2026-07-28 Spec)", () => {
     registerMcpPrompts(mockServer as unknown as McpServer);
 
     const call = mockServer.prompt.mock.calls.find((c: any) => c[0] === "seo_striking_distance");
-    const handler = call[2];
+    expect(call).toBeDefined();
+
+    const handler = call![2];
     const result = handler({ siteUrl: "https://example.com" });
     expect(result.messages[0].content.text).toContain("striking distance");
     expect(result.messages[0].content.text).toContain("500");
@@ -59,7 +61,9 @@ describe("Native MCP Prompts (MCP 2026-07-28 Spec)", () => {
     registerMcpPrompts(mockServer as unknown as McpServer);
 
     const call = mockServer.prompt.mock.calls.find((c: any) => c[0] === "seo_cannibalization_audit");
-    const handler = call[2];
+    expect(call).toBeDefined();
+
+    const handler = call![2];
     const result = handler({ siteUrl: "https://example.com" });
     expect(result.messages[0].content.text).toContain("cannibalization");
   });
@@ -72,7 +76,9 @@ describe("Native MCP Prompts (MCP 2026-07-28 Spec)", () => {
     registerMcpPrompts(mockServer as unknown as McpServer);
 
     const call = mockServer.prompt.mock.calls.find((c: any) => c[0] === "seo_compare_google_bing");
-    const handler = call[2];
+    expect(call).toBeDefined();
+
+    const handler = call![2];
     const result = handler({ siteUrl: "https://example.com", days: "30" });
     expect(result.messages[0].content.text).toContain("Google Search Console and Bing Webmaster Tools");
   });

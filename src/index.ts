@@ -37,6 +37,7 @@ import * as ga4Properties from "./ga4/tools/properties.js";
 import { loadConfig, removeAccount, updateAccount, AccountConfig } from './common/auth/config.js';
 import { resolveAccount, normalizeWebsite } from './common/auth/resolver.js';
 import { getSearchConsoleClient } from './google/client.js';
+import { registerMcpResources } from "./resources/index.js";
 import { getBingClient } from './bing/client.js';
 import { limitConcurrency } from './common/concurrency.js';
 import {
@@ -93,6 +94,7 @@ const server = new McpServer({
 });
 
 registerPrompts(server);
+registerMcpResources(server);
 
 const registerTool = createToolRegistrar(server, version);
 
