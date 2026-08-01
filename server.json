@@ -1,24 +1,27 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.saurabhsharma2u/search-console-mcp",
-  "description": "MCP server for GSC, Bing, and GA4. Includes analytics, health checks, and SEO insights.",
+  "title": "Search Console MCP",
+  "description": "Google Search Console + Bing Webmaster Tools + GA4 — unified SEO intelligence for AI agents.",
+  "websiteUrl": "https://searchconsolemcp.saurabh.app",
+  "license": "MIT",
   "repository": {
     "url": "https://github.com/saurabhsharma2u/search-console-mcp",
     "source": "github"
   },
-  "version": "1.14.2",
+  "version": "2.0.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "search-console-mcp",
-      "version": "1.14.2",
+      "version": "2.0.0",
       "transport": {
         "type": "stdio"
       },
       "environmentVariables": [
         {
-          "description": "Google Cloud Service Account JSON key content or path",
-          "isRequired": true,
+          "description": "Google Cloud Service Account JSON key content or path. Optional if OAuth setup is used.",
+          "isRequired": false,
           "format": "string",
           "isSecret": true,
           "name": "GOOGLE_APPLICATION_CREDENTIALS"
