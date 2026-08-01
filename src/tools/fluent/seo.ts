@@ -1,0 +1,96 @@
+import * as googleSeoInsights from "../../google/tools/seo-insights.js";
+import * as bingSeoInsights from "../../bing/tools/seo-insights.js";
+import * as bingKeywords from "../../bing/tools/keywords.js";
+import * as bingAnalytics from "../../bing/tools/analytics.js";
+import { validateSchema } from "../../common/tools/schema-validator.js";
+import { executeParallel } from "../../common/utils/parallel.js";
+
+/**
+ * seo_audit: Specialized SEO intelligence analysis (recommendations, quick wins, cannibalization, striking distance, lost queries, low CTR, brand vs nonbrand).
+ */
+export async function seoAuditHandler(args: {
+  siteUrl: string;
+  type: "recommendations" | "quick_wins" | "low_hanging_fruit" | "cannibalization" | "striking_distance" | "lost_queries" | "low_ctr" | "brand_vs_nonbrand";
+  brandKeywords?: string[];
+  brandRegex?: string;
+  minImpressions?: number;
+  engine?: "google" | "bing" | "all";
+}) {
+  const engine = args.engine ?? "all";
+  const type = args.type;
+  const brandRegexStr = args.brandRegex ?? (args.brandKeywords ? args.brandKeywords.join("|") : "brand");
+
+  const executeGoogle = async () => {
+    switch (type) {
+      case "recommendations": return await googleSeoInsights.generateRecommendations(args.siteUrl);
+      case "quick_wins": return await googleSeoInsights.findQuickWins(args.siteUrl);
+      case "low_hanging_fruit": return await googleSeoInsights.findLowHangingFruit(args.siteUrl, { minImpressions: args.minImpressions });
+      case "cannibalization": return await googleSeoInsights.detectCannibalization(args.siteUrl);
+      case "striking_distance": return await googleSeoInsights.findStrikingDistance(args.siteUrl);
+      case "lost_queries": return await googleSeoInsights.findLostQueries(args.siteUrl);
+      case "low_ctr": return await googleSeoInsights.findLowCTROpportunities(args.siteUrl, { minImpressions: args.minImpressions });
+      case "brand_vs_nonbrand": return await googleSeoInsights.analyzeBrandVsNonBrand(args.siteUrl, brandRegexStr);
+      default: throw new Error(`Unsupported SEO audit type: ${type}`);
+    }
+  };
+
+  const executeBing = async () => {
+    switch (type) {
+      case "recommendations": return await bingSeoInsights.generateRecommendations(args.siteUrl);
+      case "quick_wins":
+      case "low_hanging_fruit": return await bingSeoInsights.findLowHangingFruit(args.siteUrl, { minImpressions: args.minImpressions });
+      case "cannibalization": return await bingSeoInsights.detectCannibalization(args.siteUrl);
+      case "striking_distance": return await bingSeoInsights.findStrikingDistance(args.siteUrl);
+      case "lost_queries": return await bingSeoInsights.findLostQueries(args.siteUrl);
+      case "low_ctr": return await bingSeoInsights.findLowCTROpportunities(args.siteUrl, { minImpressions: args.minImpressions });
+      case "brand_vs_nonbrand": return await bingSeoInsights.analyzeBrandVsNonBrand(args.siteUrl, brandRegexStr);
+      default: throw new Error(`Unsupported SEO audit type for Bing: ${type}`);
+    }
+  };
+
+  const results = await executeParallel({
+    google: (engine === "google" || engine === "all") ? executeGoogle : null,
+    bing: (engine === "bing" || engine === "all") ? executeBing : null,
+  });
+
+  return {
+    content: [{ type: "text", text: JSON.stringify(results, null, 2) }]
+  };
+}
+
+/**
+ * seo_keywords_research: Keyword performance stats, related query expansion, and search volume estimates.
+ */
+export async function seoKeywordsResearchHandler(args: {
+  siteUrl?: string;
+  keywords: string[];
+  country?: string;
+  language?: string;
+  type?: "stats" | "related" | "traffic";
+}) {
+  const type = args.type ?? "stats";
+  const results: Record<string, any> = {};
+
+  if (type === "stats") {
+    results.stats = await bingKeywords.getKeywordStats(args.keywords[0] ?? "", args.country, args.language);
+  } else if (type === "related") {
+    results.related = await bingKeywords.getRelatedKeywords(args.keywords[0] ?? "", args.country, args.language);
+  } else if (type === "traffic") {
+    if (!args.siteUrl) throw new Error("siteUrl is required for keyword traffic analysis");
+    results.traffic = await bingAnalytics.getRankAndTrafficStats(args.siteUrl);
+  }
+
+  return {
+    content: [{ type: "text", text: JSON.stringify(results, null, 2) }]
+  };
+}
+
+/**
+ * schema_validate: Validate structured data (JSON-LD, Microdata, RDFa) for a given webpage URL.
+ */
+export async function schemaValidateHandler(args: { url: string }) {
+  const result = await validateSchema(args.url, "url");
+  return {
+    content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
+  };
+}

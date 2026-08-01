@@ -1,49 +1,38 @@
 ---
 title: "SEO Intelligence Tools"
-description: "Deterministic analysis for strategic growth."
+description: "Deterministic analysis and automated audits for strategic organic growth."
 ---
 
-These are not standard API calls. These tools implement complex SEO logic to provide the agent with high-level conclusions.
+SEO Intelligence Tools implement server-side SEO math (cannibalization scoring, striking distance filtering, brand regex matching, and opportunity scoring) before passing curated signals into your AI agent's context window.
 
-## Automation Tools
+## Fluent SEO Tools (v2.0)
 
-### `seo_opportunities` (Google) & `bing_opportunity_finder` (Bing)
-Finds keywords with high impressions but low CTR (or positions 5-20).
-*   **Problem:** You have visibility but aren't converting it into traffic.
-*   **Resolution:** Optimize Title tags and Meta descriptions.
+### `seo_audit`
+Unified entry point for automated SEO audits across Google and Bing.
+*   **Audit Types (`type`):**
+    *   `"quick_wins"`: Queries ranking in positions 8–15 with high impressions.
+    *   `"striking_distance"`: Page 2 keywords close to pushing onto Page 1.
+    *   `"cannibalization"`: Queries split across multiple competing landing pages.
+    *   `"low_hanging_fruit"`: High visibility keywords with low CTR (< 2%).
+    *   `"lost_queries"`: High-value queries that experienced >80% traffic loss.
+    *   `"recommendations"`: Automated AI SEO improvement recommendations.
+    *   `"brand_vs_nonbrand"`: Brand vs non-brand search visibility breakdown.
+*   **Parameters:** `siteUrl`, `type`, `brandKeywords` (array of brand strings).
+*   **Best for:** *"Run a quick wins and cannibalization audit for https://example.com/."*
 
-### `detect_cannibalization` (Google) & `bing_seo_recommendations` (Bing)
-Identifies queries where multiple pages from your site are ranking, causing a "split" in traffic. (Note: `bing_seo_recommendations` also returns other insight types).
-*   **Problem:** Search engines don't know which page is authoritative, so they rank both lower.
-*   **Resolution:** Merge content or distinct the keyword targeting.
+### `seo_keywords_research`
+Keyword statistics and related keyword research via Bing & GSC data.
+*   **Types (`type`):** `"stats"`, `"related"`, `"traffic"`.
+*   **Parameters:** `keywords` (array of strings), `type`.
+*   **Best for:** *"Get search volume and related keywords for 'seo tools'."*
 
-### `seo_quick_wins` (Google)
-Filters for pages/queries ranking at positions 11-20 (the top of page 2).
-*   **Problem:** You are "striking distance" away from massive traffic but aren't pushing enough.
-*   **Resolution:** Add internal links or update the content to push to page 1.
+### `schema_validate`
+Validates JSON-LD structured data and schema markup on target web pages.
 
-### `detect_anomalies` (Google) & `bing_analytics_detect_anomalies` (Bing)
-Uses statistical methods (Z-scores or threshold breaches) to find daily spikes or drops that deviate from the historical norm.
-*   **Problem:** Manual monitoring misses small but significant shifts.
-*   **Resolution:** Proactive alerts about algorithm updates or tracking issues.
+---
 
-### `seo_lost_queries` (Google & Bing)
-Identifies queries that have lost significant traffic or visibility (e.g. >80% drop) compared to the previous period.
-*   **Problem:** High-value keywords are slipping through the cracks without notice.
-*   **Resolution:** Re-optimize content to regain lost rankings.
+## 🔄 Backward Compatibility Note
 
-### `seo_brand_vs_nonbrand` (Google & Bing)
-Segments your search performance into "Brand" and "Non-Brand" categories using regex pattern matching.
-*   **Problem:** Branded traffic masks the true growth (or decline) of your SEO efforts.
-*   **Resolution:** Measure organic growth by focusing on non-branded keywords.
+All legacy SEO tools (`seo_quick_wins`, `seo_striking_distance`, `seo_cannibalization`, `seo_low_hanging_fruit`, `seo_lost_queries`, `seo_recommendations`, `seo_brand_vs_nonbrand`, `bing_opportunity_finder`) are **100% backward compatible** via our fallback router.
 
-## Example Agent Prompts
-
-#### 1. Strategic Planning
-> "Find the top 5 cannibalization issues for https://example.com and suggest which page should be the primary URL based on clicks."
-
-#### 2. Growth Hacking
-> "Give me a list of 'quick win' keywords that are on page 2 but have at least 1,000 impressions per month."
-
-#### 3. Content Audit
-> "Identify any 'low-hanging fruit' keywords where we rank in the top 10 but have a CTR below 2%."
+[Read complete Backward Compatibility Guide →](/concepts/backward-compatibility)

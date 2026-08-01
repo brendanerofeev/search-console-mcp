@@ -1,6 +1,6 @@
 {
   "name": "search-console-mcp",
-  "version": "1.14.2",
+  "version": "2.0.0",
   "mcpName": "io.github.saurabhsharma2u/search-console-mcp",
   "description": "MCP server for Google Search Console, Bing Webmaster Tools, and Google Analytics 4",
   "type": "module",
@@ -16,6 +16,10 @@
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
+    "test:live:google": "tsx tests/live-google-test.ts",
+    "test:live:bing": "tsx tests/live-bing-test.ts",
+    "test:live:ga4": "tsx tests/live-ga4-test.ts",
+    "test:live": "tsx tests/live-google-test.ts && tsx tests/live-bing-test.ts && tsx tests/live-ga4-test.ts",
     "docs": "typedoc",
     "deploy:registry": "mcp-publisher publish",
     "prepublishOnly": "npm run build"
@@ -46,8 +50,14 @@
   "devDependencies": {
     "@types/node": "^25.9.5",
     "@vitest/coverage-v8": "^4.1.10",
+    "tsx": "^4.19.2",
     "typedoc": "^0.28.20",
     "typescript": "^6.0.3",
     "vitest": "^4.1.10"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   }
 }

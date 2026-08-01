@@ -41,6 +41,7 @@
             "pages": [
               "concepts/mcp-and-seo",
               "concepts/architecture",
+              "concepts/backward-compatibility",
               "concepts/data-vs-intelligence",
               "concepts/trust-and-security"
             ]
