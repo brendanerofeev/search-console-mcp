@@ -67,21 +67,39 @@ export async function seoKeywordsResearchHandler(args: {
   country?: string;
   language?: string;
   type?: "stats" | "related" | "traffic";
+  engine?: "google" | "bing" | "all";
 }) {
   const type = args.type ?? "stats";
-  const results: Record<string, any> = {};
+  const engine = args.engine ?? "google";
 
-  if (type === "stats") {
-    results.stats = await bingKeywords.getKeywordStats(args.keywords[0] ?? "", args.country, args.language);
-  } else if (type === "related") {
-    results.related = await bingKeywords.getRelatedKeywords(args.keywords[0] ?? "", args.country, args.language);
-  } else if (type === "traffic") {
-    if (!args.siteUrl) throw new Error("siteUrl is required for keyword traffic analysis");
-    results.traffic = await bingAnalytics.getRankAndTrafficStats(args.siteUrl);
+  if (type === "traffic" && !args.siteUrl) {
+    throw new Error("siteUrl is required for keyword traffic analysis");
   }
 
+  const executeGoogle = async () => {
+    if (!args.siteUrl) return { notice: "siteUrl is recommended for Google Search Console keyword queries" };
+    return await googleSeoInsights.findLowHangingFruit(args.siteUrl, { limit: 20 });
+  };
+
+  const executeBing = async () => {
+    if (type === "stats") {
+      return await bingKeywords.getKeywordStats(args.keywords[0] ?? "", args.country, args.language);
+    } else if (type === "related") {
+      return await bingKeywords.getRelatedKeywords(args.keywords[0] ?? "", args.country, args.language);
+    } else if (type === "traffic") {
+      return await bingAnalytics.getRankAndTrafficStats(args.siteUrl!);
+    }
+  };
+
+  const parallelTasks: Record<string, (() => Promise<any>) | null> = {
+    google: (engine === "google" || engine === "all") ? executeGoogle : null,
+    bing: (engine === "bing" || engine === "all") ? executeBing : null,
+  };
+
+  const res = await executeParallel(parallelTasks);
+
   return {
-    content: [{ type: "text", text: JSON.stringify(results, null, 2) }]
+    content: [{ type: "text", text: JSON.stringify(res, null, 2) }]
   };
 }
 

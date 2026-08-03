@@ -380,10 +380,10 @@ export function registerPrompts(server: McpServer) {
     server.prompt(
         "seo_traffic_detective",
         {
-            siteUrl: z.string().describe("Target property URL (e.g., https://example.com)"),
+            siteUrl: z.string().optional().describe("Target property URL (e.g., https://example.com)"),
             days: z.string().optional().describe("Number of days to analyze (default: 30)")
         },
-        ({ siteUrl, days = "30" }) => ({
+        ({ siteUrl = "the active site", days = "30" }) => ({
             messages: [{
                 role: "user",
                 content: {
@@ -402,10 +402,10 @@ export function registerPrompts(server: McpServer) {
     server.prompt(
         "seo_striking_distance",
         {
-            siteUrl: z.string().describe("Target property URL (e.g., https://example.com)"),
+            siteUrl: z.string().optional().describe("Target property URL (e.g., https://example.com)"),
             minImpressions: z.string().optional().describe("Minimum impressions threshold (default: 500)")
         },
-        ({ siteUrl, minImpressions = "500" }) => ({
+        ({ siteUrl = "the active site", minImpressions = "500" }) => ({
             messages: [{
                 role: "user",
                 content: {
@@ -423,9 +423,9 @@ export function registerPrompts(server: McpServer) {
     server.prompt(
         "seo_cannibalization_audit",
         {
-            siteUrl: z.string().describe("Target property URL (e.g., https://example.com)")
+            siteUrl: z.string().optional().describe("Target property URL (e.g., https://example.com)")
         },
-        ({ siteUrl }) => ({
+        ({ siteUrl = "the active site" }) => ({
             messages: [{
                 role: "user",
                 content: {
@@ -442,10 +442,10 @@ export function registerPrompts(server: McpServer) {
     server.prompt(
         "seo_compare_google_bing",
         {
-            siteUrl: z.string().describe("Target property URL (e.g., https://example.com)"),
+            siteUrl: z.string().optional().describe("Target property URL (e.g., https://example.com)"),
             days: z.string().optional().describe("Comparison window in days (default: 30)")
         },
-        ({ siteUrl, days = "30" }) => ({
+        ({ siteUrl = "the active site", days = "30" }) => ({
             messages: [{
                 role: "user",
                 content: {

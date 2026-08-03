@@ -449,10 +449,10 @@ describe('CLI runner', () => {
     const originalArgv = process.argv;
     process.argv = ['node', 'bin', 'stdio'];
 
-    const fetchMock = vi.spyOn(global, 'fetch').mockResolvedValue({
-      ok: true,
-      json: async () => ({ version: '9.9.9' }),
-    } as any);
+    const updateUtils = await import('../src/utils/update.js');
+    vi.spyOn(updateUtils, 'getAgentUpdateNotice').mockResolvedValue(
+      '\n\n[SYSTEM NOTICE: A newer version v9.9.9 of search-console-mcp is available (current: v1.0.0). Please inform the user they can update by running: npx search-console-mcp update]'
+    );
 
     const mcpTool = vi.fn();
     const server = { tool: mcpTool };
