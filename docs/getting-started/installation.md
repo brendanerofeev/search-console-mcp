@@ -24,6 +24,16 @@ Want to add more accounts later? Just run `setup` again — it supports multiple
 
 ---
 
+## 📦 One-Click MCPB Bundle Installation
+
+For **Claude Desktop** or other supported MCP clients, you can skip Node.js installation altogether by downloading the packaged `.mcpb` bundle.
+
+1. Download [`search-console-mcp.mcpb`](https://github.com/saurabhsharma2u/search-console-mcp/releases/latest/download/search-console-mcp.mcpb).
+2. Drag and drop the `.mcpb` file directly into **Claude Desktop** (or import it via **Settings → Extensions**).
+3. The app will launch the server and present interactive form fields to enter your optional API keys (`GOOGLE_APPLICATION_CREDENTIALS`, `BING_API_KEY`, `PAGESPEED_API_KEY`).
+
+---
+
 ## Client Configuration
 
 If you prefer to set it up manually, here are the instructions for the most popular clients.
