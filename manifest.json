@@ -1,0 +1,49 @@
+{
+  "manifest_version": "0.2",
+  "name": "search-console-mcp",
+  "version": "2.0.2",
+  "description": "Google Search Console + Bing Webmaster Tools + GA4 — unified SEO intelligence for AI agents.",
+  "author": {
+    "name": "Saurabh Sharma"
+  },
+  "license": "MIT",
+  "homepage": "https://searchconsolemcp.saurabh.app",
+  "server": {
+    "type": "node",
+    "entry_point": "dist/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": [
+        "${__dirname}/dist/index.js"
+      ],
+      "env": {
+        "GOOGLE_APPLICATION_CREDENTIALS": "${user_config.google_application_credentials}",
+        "BING_API_KEY": "${user_config.bing_api_key}",
+        "PAGESPEED_API_KEY": "${user_config.pagespeed_api_key}"
+      }
+    }
+  },
+  "user_config": {
+    "google_application_credentials": {
+      "type": "string",
+      "title": "Google Credentials",
+      "description": "Google Cloud Service Account JSON key content or file path. Optional if browser OAuth login is used.",
+      "required": false,
+      "sensitive": true
+    },
+    "bing_api_key": {
+      "type": "string",
+      "title": "Bing API Key",
+      "description": "Bing Webmaster Tools API Key for Bing SEO data.",
+      "required": false,
+      "sensitive": true
+    },
+    "pagespeed_api_key": {
+      "type": "string",
+      "title": "PageSpeed API Key",
+      "description": "Google PageSpeed Insights API key for higher rate limits (25k/day). Optional.",
+      "required": false,
+      "sensitive": true
+    }
+  }
+}

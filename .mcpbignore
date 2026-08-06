@@ -1,0 +1,18 @@
+# Build & Tooling artifacts
+node_modules/
+.git/
+coverage/
+docs/
+docs-site/
+tests/
+*.ts
+tsconfig.json
+typedoc.json
+pnpm-lock.yaml
+pnpm-workspace.yaml
+*.mcpb
+.env
+.env.example
+.mcpregistry_*
+AGENT.md
+agent-docs

@@ -9,7 +9,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       id-token: write
 
     steps:
@@ -36,10 +36,19 @@ jobs:
       - name: Run tests
         run: pnpm test
 
-      - name: Publish to npm
-        run: pnpm publish --no-git-checks --access public
+      - name: Build MCPB Bundle
+        run: pnpm pack:mcpb
+
+      - name: Create GitHub Release & Upload MCPB Bundle
+        uses: softprops/action-gh-release@v2
+        with:
+          files: search-console-mcp.mcpb
+          generate_release_notes: true
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to npm
+        run: pnpm publish --no-git-checks --access public --provenance
 
       - name: Install mcp-publisher
         run: |

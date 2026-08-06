@@ -10,15 +10,19 @@ Stop exporting CSVs. Start asking your AI agent questions.
 [![Tests](https://github.com/saurabhsharma2u/search-console-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/saurabhsharma2u/search-console-mcp/actions/workflows/ci.yml)
 [![Stars](https://img.shields.io/github/stars/saurabhsharma2u/search-console-mcp?style=social)](https://github.com/saurabhsharma2u/search-console-mcp/stargazers)
 
+<br/>
+
+[![Download MCPB Bundle](https://img.shields.io/badge/📦%20Download%20.mcpb-One--Click%20Bundle-D97706?style=for-the-badge&logo=claude&logoColor=white)](https://github.com/saurabhsharma2u/search-console-mcp/releases/latest/download/search-console-mcp.mcpb)
+
 [📚 Docs](https://searchconsolemcp.saurabh.app/) · [Quick Start](#-quick-start) · [Tools](#-tools) · [Backward Compatibility](https://searchconsolemcp.saurabh.app/concepts/backward-compatibility) · [Security](#-security)
 
 </div>
 
 ---
 
-## ⚡ What's New in v2.0
+## ⚡ What's New in v2.0.2
 
-* 🚀 **7 Streamlined Fluent Domain Tools**: Unified entry points (`sites_list`, `analytics_query`, `seo_audit`, `indexing_submit`, `inspection_inspect`, `sitemaps_list`, `site_health_check`).
+* 📦 **MCPB One-Click Bundle Support (`.mcpb`)**: Drag and drop bundle installation for Claude Desktop.
 * ⚡ **Parallel Fetch Engine (`engine: "all"`)**: Multi-engine queries fetch Google, Bing, and GA4 concurrently with **50%+ lower latency**.
 * 🔄 **100% Backward Compatibility**: All ~96 legacy tool names continue to work seamlessly via our fallback router. [Read Backward Compatibility Guide →](https://searchconsolemcp.saurabh.app/concepts/backward-compatibility)
 
