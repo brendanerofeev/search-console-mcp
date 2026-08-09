@@ -1,6 +1,7 @@
 // @ts-ignore
 import Validator from '@adobe/structured-data-validator';
 import * as cheerio from 'cheerio';
+import { resolveFullWebUrl } from '../auth/resolver.js';
 
 /**
  * Result of a structured data (schema) validation check.
@@ -31,7 +32,10 @@ export async function validateSchema(
     try {
         if (type === 'url') {
             try {
-                const response = await fetch(input);
+                const fullUrl = resolveFullWebUrl(input);
+                const response = await fetch(fullUrl, {
+                    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; SearchConsoleMCP/2.0)' }
+                });
                 if (!response.ok) {
                     throw new Error(`Failed to fetch URL: ${response.status} ${response.statusText}`);
                 }

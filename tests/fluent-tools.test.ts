@@ -235,6 +235,7 @@ describe("Fluent Tools 100% Coverage Suite", () => {
     expect(errRes.content[0].text).toContain("error");
 
     await seoKeywordsResearchHandler({ keywords: ["seo"], type: "stats" });
+    await seoKeywordsResearchHandler({ keywords: "seo" as any, type: "stats" });
     await seoKeywordsResearchHandler({ keywords: ["seo"], type: "related" });
     await seoKeywordsResearchHandler({ siteUrl: "https://example.com/", keywords: ["seo"], type: "traffic" });
     await expect(seoKeywordsResearchHandler({ keywords: ["seo"], type: "traffic" })).rejects.toThrow();

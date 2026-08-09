@@ -1,4 +1,5 @@
 import { getBingClient } from '../client.js';
+import { resolveSiteProperty } from '../../common/auth/resolver.js';
 
 /**
  * List sitemaps for a Bing site.
@@ -7,8 +8,9 @@ import { getBingClient } from '../client.js';
  * @returns A list of sitemaps.
  */
 export async function listSitemaps(siteUrl: string): Promise<any[]> {
+    const { siteUrl: targetSiteUrl } = await resolveSiteProperty(siteUrl, 'bing').catch(() => ({ siteUrl }));
     const client = await getBingClient(siteUrl);
-    return client.getFeeds(siteUrl);
+    return client.getFeeds(targetSiteUrl);
 }
 
 /**
@@ -18,9 +20,10 @@ export async function listSitemaps(siteUrl: string): Promise<any[]> {
  * @param sitemapUrl - The URL of the sitemap file.
  */
 export async function submitSitemap(siteUrl: string, sitemapUrl: string): Promise<string> {
+    const { siteUrl: targetSiteUrl } = await resolveSiteProperty(siteUrl, 'bing').catch(() => ({ siteUrl }));
     const client = await getBingClient(siteUrl);
-    await client.submitSitemap(siteUrl, sitemapUrl);
-    return `Successfully submitted sitemap: ${sitemapUrl} for site ${siteUrl}`;
+    await client.submitSitemap(targetSiteUrl, sitemapUrl);
+    return `Successfully submitted sitemap: ${sitemapUrl} for site ${targetSiteUrl}`;
 }
 
 /**
@@ -30,7 +33,8 @@ export async function submitSitemap(siteUrl: string, sitemapUrl: string): Promis
  * @param sitemapUrl - The URL of the sitemap to remove.
  */
 export async function deleteSitemap(siteUrl: string, sitemapUrl: string): Promise<string> {
+    const { siteUrl: targetSiteUrl } = await resolveSiteProperty(siteUrl, 'bing').catch(() => ({ siteUrl }));
     const client = await getBingClient(siteUrl);
-    await client.deleteSitemap(siteUrl, sitemapUrl);
-    return `Successfully removed sitemap: ${sitemapUrl} for site ${siteUrl}`;
+    await client.deleteSitemap(targetSiteUrl, sitemapUrl);
+    return `Successfully removed sitemap: ${sitemapUrl} for site ${targetSiteUrl}`;
 }

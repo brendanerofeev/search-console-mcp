@@ -1,0 +1,24 @@
+{
+  "queryStats": [
+    { "Query": "seo tools", "Clicks": 37, "Impressions": 1196, "CTR": 0.030936, "AvgPosition": 1.2, "Date": "/Date(1731225600000-0800)/" },
+    { "Query": "search console mcp", "Clicks": 31, "Impressions": 148, "CTR": 0.209459, "AvgPosition": 2.1, "Date": "/Date(1731312000000-0800)/" }
+  ],
+  "pageStats": [
+    { "Query": "https://example.com/", "Clicks": 406, "Impressions": 15075, "CTR": 0.026932, "AvgPosition": 3.4, "Date": "/Date(1731225600000-0800)/" }
+  ],
+  "sitemaps": [
+    { "url": "https://example.com/sitemap.xml", "status": "Success", "lastSubmitted": "/Date(1785782896090)/" },
+    { "url": "https://example.com/sitemap-news.xml", "status": "Success", "lastSubmitted": "/Date(-11644473600000)/" }
+  ],
+  "urlInfo": {
+    "__type": "UrlInfo:#Microsoft.Bing.Webmaster.Api",
+    "AnchorCount": 8,
+    "DiscoveryDate": "/Date(1729062000000-0700)/",
+    "DocumentSize": 134360,
+    "HttpStatus": 0,
+    "IsPage": true,
+    "LastCrawledDate": "/Date(1786249419000)/",
+    "TotalChildUrlCount": 0,
+    "Url": "https://example.com/"
+  }
+}

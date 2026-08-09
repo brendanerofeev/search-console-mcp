@@ -1,6 +1,7 @@
 import { getSearchConsoleClient } from '../client.js';
 import { searchconsole_v1 } from 'googleapis';
 import { logger } from '../../utils/logger.js';
+import { resolveSiteProperty } from '../../common/auth/resolver.js';
 
 const CACHE_TTL_MS = 60 * 1000; // 60 seconds
 const MAX_CACHE_SIZE = 100;
@@ -171,10 +172,24 @@ export async function queryAnalytics(options: AnalyticsOptions): Promise<searchc
 
   const fetchPromise = (async () => {
     try {
+      const { siteUrl: targetSiteUrl } = await resolveSiteProperty(options.siteUrl, 'google').catch(() => ({ siteUrl: options.siteUrl }));
       const client = await getSearchConsoleClient(options.siteUrl, options.accountId);
+
+      const resolvedEndDate = options.endDate && options.endDate.trim().length > 0 ? options.endDate : (() => {
+        const d = new Date();
+        d.setDate(d.getDate() - 3);
+        return d.toISOString().split('T')[0];
+      })();
+
+      const resolvedStartDate = options.startDate && options.startDate.trim().length > 0 ? options.startDate : (() => {
+        const d = new Date(resolvedEndDate);
+        d.setDate(d.getDate() - 28);
+        return d.toISOString().split('T')[0];
+      })();
+
       const requestBody: searchconsole_v1.Schema$SearchAnalyticsQueryRequest = {
-        startDate: options.startDate,
-        endDate: options.endDate,
+        startDate: resolvedStartDate,
+        endDate: resolvedEndDate,
         dimensions: (options.dimensions && options.dimensions.length > 0) ? options.dimensions : undefined,
         type: options.type || 'web',
         aggregationType: options.aggregationType || 'auto',
@@ -201,7 +216,7 @@ export async function queryAnalytics(options: AnalyticsOptions): Promise<searchc
         }));
       }
 
-      logger.debug(`Fetching analytics for ${options.siteUrl}`, {
+      logger.debug(`Fetching analytics for ${targetSiteUrl}`, {
         startDate: options.startDate,
         endDate: options.endDate,
         dimensions: options.dimensions,
@@ -209,7 +224,7 @@ export async function queryAnalytics(options: AnalyticsOptions): Promise<searchc
       });
 
       const res = await client.searchanalytics.query({
-        siteUrl: options.siteUrl,
+        siteUrl: targetSiteUrl,
         requestBody
       });
 
@@ -725,7 +740,7 @@ export async function detectAnomalies(
 ): Promise<AnomalyItem[]> {
   const DATA_DELAY_DAYS = 3;
   const days = options.days ?? 30;
-  const threshold = options.threshold ?? 2.5; // Default 2.5 std dev
+  const threshold = options.threshold ?? 1.5; // Default 1.5 std dev
 
   const endDate = new Date();
   endDate.setDate(endDate.getDate() - DATA_DELAY_DAYS);
@@ -733,11 +748,28 @@ export async function detectAnomalies(
   const startDate = new Date(endDate);
   startDate.setDate(startDate.getDate() - days); // Look back further for baseline
 
+  // Extract page path if siteUrl contains a subpage path
+  let pagePath: string | undefined;
+  if (siteUrl.includes('/')) {
+    try {
+      const cleanUrl = siteUrl.startsWith('http') ? siteUrl : 'https://' + siteUrl.replace(/^sc-domain:/, '');
+      const parsed = new URL(cleanUrl);
+      if (parsed.pathname && parsed.pathname !== '/') {
+        pagePath = parsed.pathname;
+      }
+    } catch {
+      // Ignore URL parsing failure
+    }
+  }
+
+  const queryFilters = pagePath ? [{ dimension: 'page', operator: 'contains', expression: pagePath }] : undefined;
+
   const rows = await queryAnalytics({
     siteUrl,
     startDate: startDate.toISOString().split('T')[0],
     endDate: endDate.toISOString().split('T')[0],
-    dimensions: ['date']
+    dimensions: ['date'],
+    filters: queryFilters
   });
 
   const anomalies: AnomalyItem[] = [];

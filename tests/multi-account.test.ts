@@ -67,6 +67,18 @@ describe('Multi-Account Resolution & Boundaries', () => {
             expect(account.id).toBe('google_corp');
         });
 
+        it('should resolve bare domain input against URL-prefix boundary', async () => {
+            vi.mocked(loadConfig).mockResolvedValue(mockConfig as any);
+            const account = await resolveAccount('client.org', 'bing');
+            expect(account.id).toBe('bing_agency');
+        });
+
+        it('should resolve sc-domain input against URL-prefix boundary', async () => {
+            vi.mocked(loadConfig).mockResolvedValue(mockConfig as any);
+            const account = await resolveAccount('sc-domain:client.org', 'bing');
+            expect(account.id).toBe('bing_agency');
+        });
+
         it('should resolve to global unrestricted account if no match found', async () => {
             vi.mocked(loadConfig).mockResolvedValue(mockConfig as any);
             const account = await resolveAccount('https://other-site.com', 'google');

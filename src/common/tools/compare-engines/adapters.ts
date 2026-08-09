@@ -1,11 +1,14 @@
 import { queryAnalytics, AnalyticsOptions } from "../../../google/tools/analytics.js";
 import { getBingClient, BingQueryStats, BingPageStats } from "../../../bing/client.js";
+import { parseMicrosoftDate } from "../../utils/dates.js";
+import { resolveSiteProperty } from "../../auth/resolver.js";
 import { CompareEnginesOptions } from "./types.js";
 import { searchconsole_v1 } from "googleapis";
 
 export async function fetchGoogleData(options: CompareEnginesOptions): Promise<searchconsole_v1.Schema$ApiDataRow[]> {
+  const { siteUrl: resolvedSiteUrl } = await resolveSiteProperty(options.siteUrl, 'google').catch(() => ({ siteUrl: options.siteUrl }));
   const analyticsOptions: AnalyticsOptions = {
-    siteUrl: options.siteUrl,
+    siteUrl: resolvedSiteUrl,
     startDate: options.startDate,
     endDate: options.endDate,
     dimensions: [options.dimension],
@@ -27,15 +30,16 @@ export async function fetchGoogleData(options: CompareEnginesOptions): Promise<s
 }
 
 export async function fetchBingData(options: CompareEnginesOptions): Promise<BingQueryStats[] | BingPageStats[]> {
-  const client = await getBingClient();
+  const { siteUrl: resolvedSiteUrl } = await resolveSiteProperty(options.siteUrl, 'bing').catch(() => ({ siteUrl: options.siteUrl }));
+  const client = await getBingClient(resolvedSiteUrl);
   let rawData: (BingQueryStats | BingPageStats)[] = [];
 
   // 1. Fetch Data
   try {
     if (options.dimension === "query") {
-      rawData = await client.getQueryStats(options.siteUrl);
+      rawData = await client.getQueryStats(resolvedSiteUrl);
     } else if (options.dimension === "page") {
-      rawData = await client.getPageStats(options.siteUrl);
+      rawData = await client.getPageStats(resolvedSiteUrl);
     } else {
       console.warn(`BingAdapter: Dimension '${options.dimension}' is not fully supported.`);
       return [];
@@ -54,7 +58,7 @@ export async function fetchBingData(options: CompareEnginesOptions): Promise<Bin
   const end = new Date(options.endDate);
 
   const filtered = rawData.filter(row => {
-    const rowDate = new Date(row.Date);
+    const rowDate = parseMicrosoftDate(row.Date);
     return rowDate >= start && rowDate <= end;
   });
 

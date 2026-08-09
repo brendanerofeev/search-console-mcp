@@ -2,7 +2,9 @@ import * as bingSites from './sites.js';
 import * as bingSitemaps from './sitemaps.js';
 import * as bingAnalytics from './analytics.js';
 import * as bingCrawl from './crawl.js';
+import { parseMicrosoftDate } from '../../common/utils/dates.js';
 import { limitConcurrency } from '../../common/concurrency.js';
+import { resolveSiteProperty } from '../../common/auth/resolver.js';
 
 /**
  * Health status for a single Bing site property.
@@ -20,7 +22,7 @@ export interface BingSiteHealthReport {
             impressionsPercent: number;
             ctr: number;
             ctrPercent: number;
-            position: number;
+            position: number | null;
             positionPercent: number;
         };
     };
@@ -43,7 +45,8 @@ export interface BingSiteHealthReport {
 /**
  * Run a health check on a single Bing site.
  */
-async function checkSite(siteUrl: string): Promise<BingSiteHealthReport> {
+async function checkSite(rawSiteUrl: string): Promise<BingSiteHealthReport> {
+    const { siteUrl } = await resolveSiteProperty(rawSiteUrl, 'bing').catch(() => ({ siteUrl: rawSiteUrl }));
     const issues: string[] = [];
 
     const [sitemapList, comparison, anomalies, crawlIssues, crawlStats] = await Promise.all([
@@ -68,11 +71,22 @@ async function checkSite(siteUrl: string): Promise<BingSiteHealthReport> {
     }
 
     // --- Sitemap Analysis ---
-    const sitemapDetails = sitemapList.map((sm: any) => ({
-        path: sm.Path || 'unknown',
-        status: sm.Status || 'unknown',
-        lastSubmitted: sm.Submitted || 'unknown'
-    }));
+    const sitemapDetails = sitemapList.map((sm: any) => {
+        const rawDate = sm.Submitted || sm.lastSubmitted || sm.DateSubmitted || sm.LastSubmitted || sm.Date;
+        let formattedDate = 'unknown';
+        if (rawDate) {
+            try {
+                formattedDate = parseMicrosoftDate(rawDate).toISOString();
+            } catch {
+                formattedDate = String(rawDate);
+            }
+        }
+        return {
+            path: sm.url || sm.Url || sm.Path || sm.feedUrl || sm.path || 'unknown',
+            status: sm.Status || sm.status || 'unknown',
+            lastSubmitted: formattedDate
+        };
+    });
 
     if (sitemapList.length === 0) {
         issues.push('No sitemaps submitted to Bing');
@@ -115,7 +129,10 @@ async function checkSite(siteUrl: string): Promise<BingSiteHealthReport> {
         },
         crawl: {
             issues: crawlIssues.length,
-            recentStats: crawlStats.slice(0, 5),
+            recentStats: crawlStats.slice(0, 5).map((stat: any) => ({
+                ...stat,
+                Date: stat.Date ? parseMicrosoftDate(stat.Date).toISOString().split('T')[0] : stat.Date
+            })),
         },
         anomalies,
         issues,

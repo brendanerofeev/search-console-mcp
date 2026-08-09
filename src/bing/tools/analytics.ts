@@ -1,5 +1,6 @@
 import { getBingClient, BingQueryStats, BingPageStats, BingQueryPageStats, BingRankAndTrafficStats } from '../client.js';
 import { parseMicrosoftDate, startOfDay, endOfDay } from '../../common/utils/dates.js';
+import { limitConcurrency } from '../../common/concurrency.js';
 
 /**
  * Get query performance stats for a Bing site with optional date filtering.
@@ -77,7 +78,34 @@ export async function getQueryPageStats(
     endDate?: string
 ): Promise<BingQueryPageStats[]> {
     const client = await getBingClient(siteUrl);
-    const stats = await client.getQueryPageStats(siteUrl);
+    let stats = await client.getQueryPageStats(siteUrl).catch(() => []);
+
+    // Fallback: If site-level GetQueryPageStats returns 0 items, aggregate top pages via getPageStats + getPageQueryStats
+    if (stats.length === 0) {
+        const topPages = await client.getPageStats(siteUrl).catch(() => []);
+        const fallbackStats: BingQueryPageStats[] = [];
+        const pagesToFetch = topPages.slice(0, 15);
+        await limitConcurrency(pagesToFetch, 5, async (pRow: any) => {
+            const pageUrl = pRow.Query || pRow.Page || pRow.url || pRow.Url;
+            if (!pageUrl) return;
+            try {
+                const qStats = await client.getPageQueryStats(siteUrl, pageUrl);
+                for (const q of qStats) {
+                    fallbackStats.push({
+                        Query: q.Query,
+                        Page: pageUrl,
+                        Clicks: q.Clicks,
+                        Impressions: q.Impressions,
+                        Date: q.Date,
+                        AvgPosition: q.AvgPosition
+                    } as any);
+                }
+            } catch {
+                // Ignore individual page query errors
+            }
+        });
+        stats = fallbackStats;
+    }
 
     if (!startDate && !endDate) return stats;
 
@@ -85,6 +113,7 @@ export async function getQueryPageStats(
     const end = endDate ? endOfDay(new Date(endDate)) : new Date();
 
     return stats.filter(row => {
+        if (!row.Date) return true;
         const d = parseMicrosoftDate(row.Date);
         return d >= start && d <= end;
     });
@@ -212,7 +241,7 @@ export async function detectAnomalies(
     options: { days?: number; threshold?: number } = {}
 ): Promise<BingAnomaly[]> {
     const days = options.days || 14;
-    const threshold = options.threshold || 2.5;
+    const threshold = options.threshold || 1.5;
     const stats = await getRankAndTrafficStats(siteUrl);
 
     // Sort by date ascending

@@ -94,6 +94,18 @@ describe('Compare Engines Adapters', () => {
             expect(mockBingClient.getQueryStats).toHaveBeenCalledWith(options.siteUrl);
         });
 
+        it('should correctly parse Microsoft JSON date format strings from Bing API', async () => {
+            const mockMsDateData = [
+                { Query: 'msdate1', Clicks: 15, Impressions: 150, AvgPosition: 1, Date: '/Date(1672617600000-0800)/' }, // 2023-01-02
+            ];
+            mockBingClient.getQueryStats.mockResolvedValue(mockMsDateData);
+
+            const result = await fetchBingData(options);
+
+            expect(result).toHaveLength(1);
+            expect(result[0].Query).toBe('msdate1');
+        });
+
         it('should fetch page stats from Bing', async () => {
             const pageOptions = { ...options, dimension: 'page' as const };
             const mockRawData = [

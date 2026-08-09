@@ -1,12 +1,15 @@
 import { getBingClient, BingUrlInfo } from '../client.js';
 import { limitConcurrency } from '../../common/concurrency.js';
+import { resolveSiteProperty, resolveFullWebUrl } from '../../common/auth/resolver.js';
 
 /**
  * Get detailed indexing and crawl information for a URL.
  */
 export async function getUrlInfo(siteUrl: string, url: string): Promise<BingUrlInfo> {
+    const { siteUrl: targetSiteUrl } = await resolveSiteProperty(siteUrl, 'bing').catch(() => ({ siteUrl }));
+    const fullUrl = resolveFullWebUrl(url);
     const client = await getBingClient(siteUrl);
-    return client.getUrlInfo(siteUrl, url);
+    return client.getUrlInfo(targetSiteUrl, fullUrl);
 }
 
 /**

@@ -1,5 +1,6 @@
 import { getIndexingClient } from '../client.js';
 import { limitConcurrency } from '../../common/concurrency.js';
+import { resolveFullWebUrl } from '../../common/auth/resolver.js';
 
 /**
  * Notification type for the Google Indexing API.
@@ -63,6 +64,7 @@ export async function publishNotification(
     type: NotificationType,
     existingToken?: string
 ): Promise<PublishNotificationResult> {
+    const fullUrl = resolveFullWebUrl(url);
     let token = existingToken;
     if (!token) {
         const auth = await getIndexingClient(siteUrl);
@@ -76,7 +78,7 @@ export async function publishNotification(
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ url, type })
+        body: JSON.stringify({ url: fullUrl, type })
     });
 
     if (!response.ok) {

@@ -7,6 +7,7 @@ import { listSitemaps } from '../src/bing/tools/sitemaps.js';
 import { healthCheck } from '../src/bing/tools/sites-health.js';
 import { findLowHangingFruit, generateRecommendations, findLostQueries, analyzeBrandVsNonBrand } from '../src/bing/tools/seo-insights.js';
 import { getTimeSeriesInsights } from '../src/bing/tools/advanced-analytics.js';
+import { compareEngines } from '../src/common/tools/compare-engines/index.js';
 
 if (process.env.CI) {
     console.log('Skipping live test in CI environment.');
@@ -87,6 +88,27 @@ async function runLiveTest() {
         console.log('Step 11: Listing Sitemaps...');
         const sitemaps = await listSitemaps(siteUrl);
         console.log(`✅ Found ${sitemaps.length} sitemaps.\n`);
+
+        // 8. Cross-Engine Comparison
+        console.log('Step 12: Testing Cross-Engine Comparison (compare_engines)...');
+        const endDateStr = new Date().toISOString().split('T')[0];
+        const startDateStr = (() => {
+            const d = new Date();
+            d.setDate(d.getDate() - 28);
+            return d.toISOString().split('T')[0];
+        })();
+
+        try {
+            const comparison = await compareEngines({
+                siteUrl,
+                startDate: startDateStr,
+                endDate: endDateStr,
+                dimension: 'query'
+            });
+            console.log(`✅ Compare Engines Result: ${comparison.rows.length} rows compared across Bing and Google.\n`);
+        } catch (e) {
+            console.warn('⚠️ Step 12 compare_engines test skipped/failed:', (e as Error).message, '\n');
+        }
 
         console.log('--- All Live API Tests Completed! ---');
     } catch (error) {

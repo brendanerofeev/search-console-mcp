@@ -18,11 +18,12 @@ export async function analyticsQueryHandler(args: {
   engine?: "google" | "bing" | "all";
 }) {
   const engine = args.engine ?? "all";
+  const dimensions = args.dimensions ?? ["query"];
   const queryParams: any = {
     siteUrl: args.siteUrl,
     startDate: args.startDate,
     endDate: args.endDate,
-    dimensions: args.dimensions,
+    dimensions: dimensions,
     filters: args.filters,
     rowLimit: args.rowLimit
   };
@@ -52,15 +53,42 @@ export async function analyticsCompareHandler(args: {
   const mode = args.mode ?? "period_over_period";
   const engine = args.engine ?? "all";
 
+  const now = new Date();
+  const DATA_DELAY_DAYS = 3;
+
+  const endDate1 = args.endDate ?? (() => {
+    const d = new Date(now);
+    d.setDate(d.getDate() - DATA_DELAY_DAYS);
+    return d.toISOString().split("T")[0];
+  })();
+
+  const startDate1 = args.startDate ?? (() => {
+    const d = new Date(endDate1);
+    d.setDate(d.getDate() - 28);
+    return d.toISOString().split("T")[0];
+  })();
+
+  const compareEndDate1 = args.compareEndDate ?? (() => {
+    const d = new Date(startDate1);
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().split("T")[0];
+  })();
+
+  const compareStartDate1 = args.compareStartDate ?? (() => {
+    const d = new Date(compareEndDate1);
+    d.setDate(d.getDate() - 28);
+    return d.toISOString().split("T")[0];
+  })();
+
   let results: Record<string, any> = {};
 
   if (mode === "period_over_period") {
     results = await executeParallel({
       google: (engine === "google" || engine === "all")
-        ? () => googleAnalytics.comparePeriods(args.siteUrl, args.startDate ?? "", args.endDate ?? "", args.compareStartDate ?? "", args.compareEndDate ?? "")
+        ? () => googleAnalytics.comparePeriods(args.siteUrl, startDate1, endDate1, compareStartDate1, compareEndDate1)
         : null,
       bing: (engine === "bing" || engine === "all")
-        ? () => bingAnalytics.comparePeriods(args.siteUrl, args.startDate ?? "", args.endDate ?? "", args.compareStartDate ?? "", args.compareEndDate ?? "")
+        ? () => bingAnalytics.comparePeriods(args.siteUrl, startDate1, endDate1, compareStartDate1, compareEndDate1)
         : null,
     });
   } else if (mode === "trends" || mode === "drop_attribution") {

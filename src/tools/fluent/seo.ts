@@ -1,4 +1,5 @@
 import * as googleSeoInsights from "../../google/tools/seo-insights.js";
+import * as googleAnalytics from "../../google/tools/analytics.js";
 import * as bingSeoInsights from "../../bing/tools/seo-insights.js";
 import * as bingKeywords from "../../bing/tools/keywords.js";
 import * as bingAnalytics from "../../bing/tools/analytics.js";
@@ -63,7 +64,7 @@ export async function seoAuditHandler(args: {
  */
 export async function seoKeywordsResearchHandler(args: {
   siteUrl?: string;
-  keywords: string[];
+  keywords: string[] | string;
   country?: string;
   language?: string;
   type?: "stats" | "related" | "traffic";
@@ -71,6 +72,9 @@ export async function seoKeywordsResearchHandler(args: {
 }) {
   const type = args.type ?? "stats";
   const engine = args.engine ?? "google";
+  const keywordsList = Array.isArray(args.keywords)
+    ? args.keywords
+    : (typeof args.keywords === 'string' && args.keywords.trim().length > 0 ? [args.keywords] : []);
 
   if (type === "traffic" && !args.siteUrl) {
     throw new Error("siteUrl is required for keyword traffic analysis");
@@ -78,14 +82,37 @@ export async function seoKeywordsResearchHandler(args: {
 
   const executeGoogle = async () => {
     if (!args.siteUrl) return { notice: "siteUrl is recommended for Google Search Console keyword queries" };
+    if (keywordsList.length > 0) {
+      const seedKeyword = keywordsList[0];
+      const endDate = new Date();
+      endDate.setDate(endDate.getDate() - 3);
+      const startDate = new Date(endDate);
+      startDate.setDate(startDate.getDate() - 28);
+      const rows = await googleAnalytics.queryAnalytics({
+        siteUrl: args.siteUrl,
+        startDate: startDate.toISOString().split('T')[0],
+        endDate: endDate.toISOString().split('T')[0],
+        dimensions: ['query'],
+        filters: [{ dimension: 'query', operator: 'contains', expression: seedKeyword }],
+        limit: 50
+      });
+      return rows.map(r => ({
+        query: r.keys?.[0] ?? '',
+        clicks: r.clicks ?? 0,
+        impressions: r.impressions ?? 0,
+        ctr: r.ctr ?? 0,
+        position: r.position ?? 0
+      }));
+    }
     return await googleSeoInsights.findLowHangingFruit(args.siteUrl, { limit: 20 });
   };
 
   const executeBing = async () => {
+    const seedKeyword = keywordsList[0] ?? "";
     if (type === "stats") {
-      return await bingKeywords.getKeywordStats(args.keywords[0] ?? "", args.country, args.language);
+      return await bingKeywords.getKeywordStats(seedKeyword, args.country, args.language);
     } else if (type === "related") {
-      return await bingKeywords.getRelatedKeywords(args.keywords[0] ?? "", args.country, args.language);
+      return await bingKeywords.getRelatedKeywords(seedKeyword, args.country, args.language);
     } else if (type === "traffic") {
       return await bingAnalytics.getRankAndTrafficStats(args.siteUrl!);
     }

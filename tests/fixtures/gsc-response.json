@@ -1,0 +1,30 @@
+{
+  "siteList": {
+    "siteEntry": [
+      { "siteUrl": "sc-domain:example.com", "permissionLevel": "siteOwner" },
+      { "siteUrl": "https://example.com/", "permissionLevel": "siteFullUser" }
+    ]
+  },
+  "searchAnalyticsQuery": {
+    "rows": [
+      {
+        "keys": ["seo tools"],
+        "clicks": 150,
+        "impressions": 3000,
+        "ctr": 0.05,
+        "position": 1.5
+      }
+    ],
+    "responseAggregationType": "byPage"
+  },
+  "urlInspection": {
+    "inspectionResult": {
+      "verdict": "PASS",
+      "indexStatusResult": {
+        "verdict": "PASS",
+        "coverageState": "Indexed",
+        "indexingState": "INDEXING_ALLOWED"
+      }
+    }
+  }
+}

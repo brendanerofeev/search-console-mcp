@@ -40,6 +40,16 @@ export interface BingBrandVsNonBrandMetrics {
     queryCount: number;
 }
 
+function getPos(row: any): number {
+    return typeof row.AvgImpressionPosition === 'number' ? row.AvgImpressionPosition : (typeof row.AvgPosition === 'number' ? row.AvgPosition : (typeof row.position === 'number' ? row.position : 100));
+}
+
+function getCTR(row: any): number {
+    if (typeof row.CTR === 'number' && row.CTR > 0) return row.CTR;
+    if (typeof row.ctr === 'number' && row.ctr > 0) return row.ctr;
+    return row.Impressions > 0 ? (row.Clicks / row.Impressions) : 0;
+}
+
 /**
  * Find "low-hanging fruit" keywords in Bing.
  */
@@ -47,22 +57,22 @@ export async function findLowHangingFruit(
     siteUrl: string,
     options: { minImpressions?: number; limit?: number; queryStats?: BingQueryStats[] } = {}
 ): Promise<BingLowHangingFruit[]> {
-    const { minImpressions = 100, limit = 50, queryStats } = options;
+    const { minImpressions = 10, limit = 50, queryStats } = options;
 
     const rows = queryStats || await getQueryStats(siteUrl);
 
     // Filter for low-hanging fruit: position 5-20, high impressions
     const candidates = rows
         .filter(row => {
-            const position = row.AvgPosition;
-            const impressions = row.Impressions;
+            const position = getPos(row);
+            const impressions = row.Impressions ?? 0;
             return position >= 5 && position <= 20 && impressions >= minImpressions;
         })
         .map(row => {
-            const position = row.AvgPosition;
-            const impressions = row.Impressions;
-            const clicks = row.Clicks;
-            const ctr = row.CTR;
+            const position = getPos(row);
+            const impressions = row.Impressions ?? 0;
+            const clicks = row.Clicks ?? 0;
+            const ctr = getCTR(row);
 
             // Estimate potential clicks if moved to top 3 (conservative 15% CTR)
             const potentialClicks = Math.round(impressions * 0.15) - clicks;
@@ -94,7 +104,10 @@ export async function findStrikingDistance(
     const rows = queryStats || await getQueryStats(siteUrl);
 
     return rows
-        .filter(r => r.AvgPosition >= 8 && r.AvgPosition <= 15)
+        .filter(r => {
+            const pos = getPos(r);
+            return pos >= 8 && pos <= 15;
+        })
         .sort((a, b) => b.Impressions - a.Impressions)
         .slice(0, limit);
 }
@@ -106,7 +119,7 @@ export async function findLowCTROpportunities(
     siteUrl: string,
     options: { minImpressions?: number; limit?: number; queryStats?: BingQueryStats[] } = {}
 ): Promise<Array<BingQueryStats & { benchmarkCtr: number }>> {
-    const { minImpressions = 500, limit = 50, queryStats } = options;
+    const { minImpressions = 10, limit = 50, queryStats } = options;
 
     const rows = queryStats || await getQueryStats(siteUrl);
 
@@ -117,16 +130,16 @@ export async function findLowCTROpportunities(
     };
 
     return rows
-        .filter(r => r.Impressions > minImpressions && r.AvgPosition <= 10)
+        .filter(r => (r.Impressions ?? 0) >= minImpressions && getPos(r) <= 10)
         .map(r => {
-            const pos = Math.round(r.AvgPosition);
+            const pos = Math.round(getPos(r));
             const benchmark = benchmarks[pos] || 0.01;
             return {
                 ...r,
                 benchmarkCtr: benchmark
             };
         })
-        .filter(item => item.CTR < (item.benchmarkCtr * 0.6))
+        .filter(item => getCTR(item) < (item.benchmarkCtr * 0.6))
         .sort((a, b) => b.Impressions - a.Impressions)
         .slice(0, limit);
 }

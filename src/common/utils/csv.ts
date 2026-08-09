@@ -9,32 +9,55 @@ export function jsonToCsv(data: Record<string, any>[]): string {
 
   // Get all unique headers from all objects
   const headerSet = new Set<string>();
-  for (const row of data) {
+  for (let i = 0; i < data.length; i++) {
+    const row = data[i];
     if (row && typeof row === 'object') {
-      Object.keys(row).forEach(key => headerSet.add(key));
+      const keys = Object.keys(row);
+      for (let k = 0; k < keys.length; k++) {
+        headerSet.add(keys[k]);
+      }
     }
   }
   const headers = Array.from(headerSet);
+  if (headers.length === 0) return "";
 
-  const csvRows = [headers.join(',')];
+  const numHeaders = headers.length;
+  let csv = "";
 
-  for (const row of data) {
-    const values = headers.map(header => {
-      const val = row && typeof row === 'object' ? row[header] : undefined;
-      const stringVal = val === undefined || val === null ? '' : String(val);
-
-      // Escape double quotes by doubling them
-      const escaped = stringVal.replace(/"/g, '""');
-
-      // Wrap in quotes if it contains comma, quote or newline
-      if (escaped.includes(',') || escaped.includes('"') || escaped.includes('\n')) {
-        return `"${escaped}"`;
-      }
-
-      return escaped;
-    });
-    csvRows.push(values.join(','));
+  // Write header row
+  for (let h = 0; h < numHeaders; h++) {
+    const header = headers[h];
+    const hasQuote = header.includes('"');
+    const escaped = hasQuote ? header.replace(/"/g, '""') : header;
+    if (hasQuote || escaped.includes(',') || escaped.includes('\n')) {
+      csv += `"${escaped}"`;
+    } else {
+      csv += escaped;
+    }
+    if (h < numHeaders - 1) csv += ',';
   }
 
-  return csvRows.join('\n');
+  // Write data rows directly without per-row array allocations
+  for (let i = 0; i < data.length; i++) {
+    csv += '\n';
+    const row = data[i];
+    const isObject = row && typeof row === 'object';
+    for (let h = 0; h < numHeaders; h++) {
+      const val = isObject ? row[headers[h]] : undefined;
+      if (val !== undefined && val !== null) {
+        const stringVal = String(val);
+        const hasQuote = stringVal.includes('"');
+        const escaped = hasQuote ? stringVal.replace(/"/g, '""') : stringVal;
+
+        if (hasQuote || escaped.includes(',') || escaped.includes('\n')) {
+          csv += `"${escaped}"`;
+        } else {
+          csv += escaped;
+        }
+      }
+      if (h < numHeaders - 1) csv += ',';
+    }
+  }
+
+  return csv;
 }

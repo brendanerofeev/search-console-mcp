@@ -1,4 +1,5 @@
 import { google, pagespeedonline_v5 } from 'googleapis';
+import { resolveFullWebUrl } from '../../common/auth/resolver.js';
 
 const pagespeed = google.pagespeedonline('v5');
 
@@ -56,11 +57,12 @@ export async function analyzePageSpeed(
     url: string,
     strategy: 'mobile' | 'desktop' = 'mobile'
 ): Promise<PageSpeedResult> {
+    const fullUrl = resolveFullWebUrl(url);
     const key = getApiKey();
     let res;
     try {
         res = await pagespeed.pagespeedapi.runpagespeed({
-            url,
+            url: fullUrl,
             strategy,
             category: ['performance', 'accessibility', 'best-practices', 'seo'],
             ...(key && { key })

@@ -1,5 +1,5 @@
 
-const MS_DATE_REGEX = /\/Date\((\d+)([+-]\d+)?\)\//;
+const MS_DATE_REGEX = /\/Date\((-?\d+)([+-]\d+)?\)\//;
 
 /**
  * Parses a Microsoft-style JSON date string (e.g., "/Date(1731225600000-0800)/")
