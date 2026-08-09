@@ -180,26 +180,31 @@ export interface BrandVsNonBrandMetrics {
 }
 
 function aggregateQueryPageToQuery(rows: AnalyticsRows): AnalyticsRows {
-    const map = new Map<string, { clicks: number; impressions: number; position: number; ctr: number }>();
+    const map = new Map<string, { query: string; clicks: number; impressions: number; position: number }>();
     for (const row of rows) {
         const query = row.keys?.[0] || '';
-        if (!map.has(query)) {
-            map.set(query, { clicks: 0, impressions: 0, position: 0, ctr: 0 });
+        let entry = map.get(query);
+        if (!entry) {
+            entry = { query, clicks: 0, impressions: 0, position: 0 };
+            map.set(query, entry);
         }
-        const entry = map.get(query)!;
         entry.clicks += row.clicks || 0;
         entry.impressions += row.impressions || 0;
         // Weighted position sum
         entry.position += (row.position || 0) * (row.impressions || 0);
     }
 
-    return Array.from(map.entries()).map(([query, stats]) => ({
-        keys: [query],
-        clicks: stats.clicks,
-        impressions: stats.impressions,
-        ctr: stats.impressions ? stats.clicks / stats.impressions : 0,
-        position: stats.impressions ? stats.position / stats.impressions : 0
-    }));
+    const result: AnalyticsRows = [];
+    for (const stats of map.values()) {
+        result.push({
+            keys: [stats.query],
+            clicks: stats.clicks,
+            impressions: stats.impressions,
+            ctr: stats.impressions ? stats.clicks / stats.impressions : 0,
+            position: stats.impressions ? stats.position / stats.impressions : 0
+        });
+    }
+    return result;
 }
 
 /**

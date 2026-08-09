@@ -1,4 +1,6 @@
 
+const MS_DATE_REGEX = /\/Date\((\d+)([+-]\d+)?\)\//;
+
 /**
  * Parses a Microsoft-style JSON date string (e.g., "/Date(1731225600000-0800)/")
  * into a standard JavaScript Date object.
@@ -6,8 +8,8 @@
 export function parseMicrosoftDate(dateStr: string): Date {
     if (!dateStr) return new Date(0);
 
-    // Extract the timestamp digits
-    const match = dateStr.match(/\/Date\((\d+)([+-]\d+)?\)\//);
+    // Extract the timestamp digits using module-scoped regex
+    const match = dateStr.match(MS_DATE_REGEX);
     if (match) {
         const timestamp = parseInt(match[1], 10);
         return new Date(timestamp);

@@ -14,8 +14,10 @@ export function compareRows(googleRows: NormalizedRow[], bingRows: NormalizedRow
     bingMap.set(row.key, row);
   }
 
-  // 2. Identify all unique keys
-  const allKeys = new Set([...googleMap.keys(), ...bingMap.keys()]);
+  // 2. Identify all unique keys without temporary array allocations
+  const allKeys = new Set<string>();
+  for (const key of googleMap.keys()) allKeys.add(key);
+  for (const key of bingMap.keys()) allKeys.add(key);
   const rows: ComparisonRow[] = [];
 
   let googleTotalClicks = 0;
