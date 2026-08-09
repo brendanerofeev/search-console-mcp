@@ -177,6 +177,22 @@ describe('Google Indexing API', () => {
             expect(mockFetch).toHaveBeenCalledTimes(3);
         });
 
+        it('should reuse single indexing client token for the entire batch', async () => {
+            const getIndexingClientMock = (await import('../src/google/client.js')).getIndexingClient;
+            vi.mocked(getIndexingClientMock).mockClear();
+
+            const urls = ['https://example.com/p1', 'https://example.com/p2', 'https://example.com/p3'];
+            mockFetch.mockResolvedValue({
+                ok: true,
+                json: async () => ({ urlNotificationMetadata: { url: 'https://example.com/p1' } })
+            });
+
+            await batchPublishNotifications('https://example.com', urls, 'URL_UPDATED');
+
+            // Verified optimization: getIndexingClient called 1 time for the batch (not 4 times)
+            expect(getIndexingClientMock).toHaveBeenCalledTimes(1);
+        });
+
         it('should return empty array for empty input', async () => {
             const results = await batchPublishNotifications(
                 'https://example.com',

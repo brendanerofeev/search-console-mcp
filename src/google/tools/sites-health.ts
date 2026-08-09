@@ -156,28 +156,22 @@ async function checkSite(siteUrl: string, existingSiteInfo?: Awaited<ReturnType<
  */
 async function getWeekOverWeekComparison(siteUrl: string): Promise<analytics.PeriodComparison> {
     const DATA_DELAY_DAYS = 3;
-    const now = new Date();
+    const nowMs = Date.now();
+    const DAY_MS = 86_400_000;
 
-    const period1End = new Date(now);
-    period1End.setDate(period1End.getDate() - DATA_DELAY_DAYS);
+    const p1EndMs = nowMs - DATA_DELAY_DAYS * DAY_MS;
+    const p1StartMs = p1EndMs - 7 * DAY_MS;
+    const p2EndMs = p1StartMs - DAY_MS;
+    const p2StartMs = p2EndMs - 7 * DAY_MS;
 
-    const period1Start = new Date(period1End);
-    period1Start.setDate(period1Start.getDate() - 7);
-
-    const period2End = new Date(period1Start);
-    period2End.setDate(period2End.getDate() - 1);
-
-    const period2Start = new Date(period2End);
-    period2Start.setDate(period2Start.getDate() - 7);
-
-    const fmt = (d: Date) => d.toISOString().split('T')[0];
+    const fmt = (ms: number) => new Date(ms).toISOString().split('T')[0];
 
     return analytics.comparePeriods(
         siteUrl,
-        fmt(period1Start),
-        fmt(period1End),
-        fmt(period2Start),
-        fmt(period2End),
+        fmt(p1StartMs),
+        fmt(p1EndMs),
+        fmt(p2StartMs),
+        fmt(p2EndMs),
     );
 }
 

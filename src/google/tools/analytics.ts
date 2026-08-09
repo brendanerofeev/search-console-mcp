@@ -744,12 +744,18 @@ export async function detectAnomalies(
 
   if (rows.length < 5) return [];
 
-  const clicks = rows.map(r => r.clicks ?? 0);
-  const avgClicks = clicks.reduce((a, b) => a + b, 0) / clicks.length;
+  let sum = 0;
+  for (let i = 0; i < rows.length; i++) {
+    sum += rows[i].clicks ?? 0;
+  }
+  const avgClicks = sum / rows.length;
 
-  // Standard Deviation
-  const variance = clicks.reduce((a, b) => a + Math.pow(b - avgClicks, 2), 0) / clicks.length;
-  const stdDev = Math.sqrt(variance);
+  let sumSqDiff = 0;
+  for (let i = 0; i < rows.length; i++) {
+    const diff = (rows[i].clicks ?? 0) - avgClicks;
+    sumSqDiff += diff * diff;
+  }
+  const stdDev = Math.sqrt(sumSqDiff / rows.length);
 
   // Heuristic: Flag if > threshold stdDev away
   for (const row of rows) {

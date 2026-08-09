@@ -60,11 +60,15 @@ const INDEXING_API_BASE = 'https://indexing.googleapis.com/v3/urlNotifications';
 export async function publishNotification(
     siteUrl: string,
     url: string,
-    type: NotificationType
+    type: NotificationType,
+    existingToken?: string
 ): Promise<PublishNotificationResult> {
-    const auth = await getIndexingClient(siteUrl);
-    const accessToken = await auth.getAccessToken();
-    const token = typeof accessToken === 'string' ? accessToken : accessToken.token;
+    let token = existingToken;
+    if (!token) {
+        const auth = await getIndexingClient(siteUrl);
+        const accessToken = await auth.getAccessToken();
+        token = typeof accessToken === 'string' ? accessToken : accessToken.token;
+    }
 
     const response = await fetch(`${INDEXING_API_BASE}:publish`, {
         method: 'POST',
@@ -149,9 +153,18 @@ export async function batchPublishNotifications(
         throw new Error('Batch limited to 200 URLs (Google Indexing API daily quota). Please submit in smaller batches.');
     }
 
+    let token: string | undefined;
+    try {
+        const auth = await getIndexingClient(siteUrl);
+        const accessToken = await auth.getAccessToken();
+        token = typeof accessToken === 'string' ? accessToken : accessToken.token;
+    } catch {
+        // Fallback to per-request resolution if token resolution fails
+    }
+
     return limitConcurrency(urls, 5, async (url) => {
         try {
-            const result = await publishNotification(siteUrl, url, type);
+            const result = await publishNotification(siteUrl, url, type, token);
             return { url, result };
         } catch (error) {
             return { url, error: (error as Error).message };

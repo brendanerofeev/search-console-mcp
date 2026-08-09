@@ -38,14 +38,21 @@ export interface AppConfig {
 
 let cachedConfig: AppConfig | null = null;
 
+let cachedEncryptionKey: Buffer | null = null;
+
 export function resetConfigCache() {
     cachedConfig = null;
+    cachedEncryptionKey = null;
 }
 
-function getEncryptionKey() {
+function getEncryptionKey(): Buffer {
+    if (cachedEncryptionKey) {
+        return cachedEncryptionKey;
+    }
     const mId = machineIdSync();
     const salt = process.env.USER || 'sc-mcp-salt';
-    return scryptSync(mId, salt, 32);
+    cachedEncryptionKey = scryptSync(mId, salt, 32);
+    return cachedEncryptionKey;
 }
 
 function encrypt(text: string): string {

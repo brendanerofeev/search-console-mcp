@@ -13,9 +13,10 @@ import { limitConcurrency } from '../../common/concurrency.js';
 export async function inspectUrl(
   siteUrl: string,
   inspectionUrl: string,
-  languageCode: string = 'en-US'
+  languageCode: string = 'en-US',
+  existingClient?: searchconsole_v1.Searchconsole
 ): Promise<searchconsole_v1.Schema$InspectUrlIndexResponse> {
-  const client = await getSearchConsoleClient(siteUrl);
+  const client = existingClient || await getSearchConsoleClient(siteUrl);
   const res = await client.urlInspection.index.inspect({
     requestBody: {
       inspectionUrl,
@@ -39,9 +40,16 @@ export async function inspectBatch(
   inspectionUrls: string[],
   languageCode: string = 'en-US'
 ): Promise<Array<{ url: string; result?: searchconsole_v1.Schema$InspectUrlIndexResponse; error?: string }>> {
+  let client: searchconsole_v1.Searchconsole | undefined;
+  try {
+    client = await getSearchConsoleClient(siteUrl);
+  } catch {
+    // Fallback to per-request resolution if batch client resolution fails
+  }
+
   return limitConcurrency(inspectionUrls, 5, async (url) => {
     try {
-      const result = await inspectUrl(siteUrl, url, languageCode);
+      const result = await inspectUrl(siteUrl, url, languageCode, client);
       return { url, result };
     } catch (error) {
       return { url, error: (error as Error).message };

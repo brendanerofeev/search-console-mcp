@@ -70,6 +70,23 @@ describe('Batch Inspection Tool', () => {
             expect(results[0].result?.inspectionResult?.indexStatusResult?.verdict).toBe('PASS');
         });
 
+        it('should reuse a single client instance for the entire batch instead of per-URL lookups', async () => {
+            const getSearchConsoleClientMock = (await import('../src/google/client')).getSearchConsoleClient;
+            vi.mocked(getSearchConsoleClientMock).mockClear();
+
+            const siteUrl = 'https://example.com';
+            const urls = ['https://example.com/page1', 'https://example.com/page2', 'https://example.com/page3'];
+
+            mockSearchConsoleClient.urlInspection.index.inspect.mockResolvedValue({
+                data: { result: 'ok' }
+            });
+
+            await inspectBatchGoogle(siteUrl, urls);
+
+            // Verified optimization: Client resolves exactly 1 time instead of N+1 times
+            expect(getSearchConsoleClientMock).toHaveBeenCalledTimes(1);
+        });
+
         it('should handle errors for individual URLs', async () => {
             const siteUrl = 'https://example.com';
             const urls = ['https://example.com/page1', 'https://example.com/error'];
