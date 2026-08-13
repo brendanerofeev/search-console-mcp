@@ -13,10 +13,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      # Must match the repo's other workflows: the security `overrides` in
+      # pnpm-workspace.yaml are a pnpm 10+ feature, and an older pnpm drops them.
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9.15.0
+          version: 11
 
       - name: Set up Node
         uses: actions/setup-node@v6

@@ -5,7 +5,10 @@
 FROM node:22-slim AS builder
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+# pnpm 11 to match CI and the repo's pnpm-workspace.yaml, which is where the
+# security `overrides` (brace-expansion CVE pins) live. pnpm 9 ignores that
+# file's overrides and silently drops the pins from the lockfile.
+RUN corepack enable && corepack prepare pnpm@11.21.0 --activate
 
 # Lockfile-only layer so dependency installs cache across source changes.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
