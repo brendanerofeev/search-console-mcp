@@ -77,6 +77,7 @@ import * as trackingFluent from "./tools/fluent/tracking.js";
 import * as keywordsFluent from "./tools/fluent/keywords.js";
 import * as businessFluent from "./tools/fluent/business.js";
 import * as reportFluent from "./tools/fluent/report.js";
+import * as auditFluent from "./tools/fluent/audit.js";
 import { executeLegacyFallback, legacyFallbackMap, shouldUseLegacyFallback } from "./legacy/fallback-router.js";
 import { CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 
@@ -437,6 +438,13 @@ registerTool(
     notes: z.string().optional().describe("Why")
   },
   reportFluent.keywordDecideHandler
+);
+
+registerTool(
+  "seo_onboarding",
+  "SEO onboarding audit for a site: technical foundations, on-page basics, indexing coverage, measurement setup, plus the off-page items that must be done by hand. Run this BEFORE chasing keywords - an unindexed page cannot rank however good its content is.",
+  { siteUrl: z.string().describe("The site property URL") },
+  auditFluent.seoOnboardingHandler
 );
 
 // 5. Indexing & URL Submission

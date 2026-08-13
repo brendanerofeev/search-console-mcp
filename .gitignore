@@ -6,4 +6,4 @@ coverage/
 docs-site/
 AGENT.md
 agent-docs
-*.mcpb
+*.mcpb.audit/

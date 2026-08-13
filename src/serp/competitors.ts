@@ -190,8 +190,13 @@ function buildGaps(ours: PageSignals, theirs: PageSignals[], keyword: string): s
     }
 
     const theirKw = median(theirs.map((p) => p.keywordCount ?? 0));
-    if ((ours.keywordCount ?? 0) === 0) {
+    // Only a gap if the pages beating us actually use the phrase. When their
+    // median is 0 too, exact-phrase usage plainly is not what is ranking them,
+    // and reporting it would send us optimising for a non-signal.
+    if ((ours.keywordCount ?? 0) === 0 && theirKw > 0) {
         gaps.push(`"${keyword}" never appears in your page body; pages above you use it a median of ${theirKw} times.`);
+    } else if ((ours.keywordCount ?? 0) === 0 && theirKw === 0) {
+        gaps.push(`Neither you nor the pages above you use "${keyword}" verbatim — exact-phrase usage is not the differentiator here; topical depth is.`);
     }
 
     if (!gaps.length) {
