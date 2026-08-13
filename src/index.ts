@@ -73,6 +73,7 @@ import * as seoFluent from "./tools/fluent/seo.js";
 import * as healthFluent from "./tools/fluent/health.js";
 import * as serpFluent from "./tools/fluent/serp.js";
 import * as profilesFluent from "./tools/fluent/profiles.js";
+import * as trackingFluent from "./tools/fluent/tracking.js";
 import { executeLegacyFallback, legacyFallbackMap, shouldUseLegacyFallback } from "./legacy/fallback-router.js";
 import { CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 
@@ -327,6 +328,49 @@ registerTool(
   serpFluent.pageAnalyzeHandler
 );
 
+// 4c. Local archive: sync + history
+// Search Console's window is rolling, so days that are not snapshotted are lost
+// permanently; URL Inspection is capped at 2,000/day/property, so index status
+// is cached rather than re-fetched.
+registerTool(
+  "sync_run",
+  "Collect data into the local store (rank history, sitemap URLs, index status, SERP positions). This is what the scheduled daily job runs.",
+  {
+    siteUrl: z.string().optional().describe("Restrict to one property (default: all active profiles)"),
+    tasks: z.array(z.enum(["rank", "sitemap", "index", "serp"])).optional().describe("Which syncs to run (default: all)"),
+    rankDays: z.number().optional().describe("Days of Search Console history to request (default: 10)"),
+    inspectionBudget: z.number().optional().describe("Max URL Inspection calls per property (default: 1500, hard cap 2000)")
+  },
+  trackingFluent.syncRunHandler
+);
+
+registerTool(
+  "index_coverage",
+  "Indexed vs not indexed across a site, answered from the local cache without spending URL Inspection quota. Optionally lists the problem URLs.",
+  {
+    siteUrl: z.string().describe("The site property URL"),
+    state: z.string().optional().describe("Filter to a coverage state, e.g. 'Discovered - currently not indexed'"),
+    listUrls: z.boolean().optional().describe("Include the URL list (default: false)"),
+    limit: z.number().optional().describe("Max URLs to list (default: 100)")
+  },
+  trackingFluent.indexCoverageHandler
+);
+
+registerTool(
+  "rank_history",
+  "Position over time from the local archive, which outlives Google's rolling window. mode='series' for one query's trend; mode='movers' for the biggest climbers and fallers.",
+  {
+    siteUrl: z.string().describe("The site property URL"),
+    query: z.string().optional().describe("Query to chart (required for mode='series')"),
+    page: z.string().optional().describe("Restrict to one page URL"),
+    days: z.number().optional().describe("Window in days (default: 90)"),
+    mode: z.enum(["series", "movers"]).optional().describe("Analysis mode"),
+    limit: z.number().optional().describe("Max rows for movers (default: 20)"),
+    minImpressions: z.number().optional().describe("Minimum impressions to include in movers (default: 10)")
+  },
+  trackingFluent.rankHistoryHandler
+);
+
 // 5. Indexing & URL Submission
 registerTool(
   "indexing_submit",
@@ -554,9 +598,23 @@ async function main() {
 
   const isSseMode = process.argv.includes("--transport=sse") || process.argv.includes("serve");
   const portArg = process.argv.find((arg) => arg.startsWith("--port="));
-  const port = portArg ? parseInt(portArg.split("=")[1], 10) : 3000;
+  const port = portArg
+    ? parseInt(portArg.split("=")[1], 10)
+    : parseInt(process.env.PORT ?? "3000", 10);
 
   if (isSseMode) {
+    // The remote transport exposes every tool, including writes (sitemap submit,
+    // indexing submit). Refuse to serve it unauthenticated outside development —
+    // failing to start is far safer than silently publishing an open endpoint.
+    if (!process.env.MCP_AUTH_TOKEN && process.env.NODE_ENV === "production") {
+      console.error(
+        "Refusing to start: MCP_AUTH_TOKEN is required when serving HTTP with NODE_ENV=production."
+      );
+      process.exit(1);
+    }
+    if (!process.env.MCP_AUTH_TOKEN) {
+      console.error("WARNING: serving HTTP without MCP_AUTH_TOKEN — endpoint is unauthenticated.");
+    }
     await startSseServer(server, port);
   } else {
     const transport = new StdioServerTransport();
