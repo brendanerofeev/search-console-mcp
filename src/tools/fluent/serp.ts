@@ -1,0 +1,83 @@
+import { fetchSerp, isOwnResult } from '../../serp/client.js';
+import { analyzePage } from '../../serp/page-analysis.js';
+import { analyzeCompetitorGap } from '../../serp/competitors.js';
+
+/**
+ * serp_lookup: Live Google results for a query, flagging our own listings.
+ */
+export async function serpLookupHandler(args: {
+    query: string;
+    siteUrl?: string;
+    location?: string;
+    country?: string;
+    language?: string;
+    device?: 'desktop' | 'mobile';
+    num?: number;
+}) {
+    const serp = await fetchSerp(args);
+
+    const organic = serp.organic.map((r) => ({
+        position: r.position,
+        title: r.title,
+        link: r.link,
+        snippet: r.snippet,
+        ...(args.siteUrl ? { isYours: isOwnResult(r.link, args.siteUrl) } : {}),
+    }));
+
+    const yours = args.siteUrl ? organic.filter((r) => (r as any).isYours) : [];
+
+    return {
+        content: [
+            {
+                type: 'text' as const,
+                text: JSON.stringify(
+                    {
+                        query: serp.query,
+                        location: args.location ?? process.env.SERPER_DEFAULT_LOCATION ?? null,
+                        device: args.device ?? 'mobile',
+                        yourPositions: yours.map((r) => ({ position: r.position, link: r.link })),
+                        organic,
+                        peopleAlsoAsk: serp.peopleAlsoAsk,
+                        relatedSearches: serp.relatedSearches,
+                        creditsUsed: serp.credits,
+                    },
+                    null,
+                    2
+                ),
+            },
+        ],
+    };
+}
+
+/**
+ * serp_competitor_gap: Why the pages above us rank above us, for one query.
+ */
+export async function serpCompetitorGapHandler(args: {
+    siteUrl: string;
+    query: string;
+    location?: string;
+    country?: string;
+    language?: string;
+    device?: 'desktop' | 'mobile';
+    num?: number;
+    compareTop?: number;
+    skipPageAnalysis?: boolean;
+}) {
+    const result = await analyzeCompetitorGap(args);
+    return {
+        content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+    };
+}
+
+/**
+ * page_analyze: On-page signals for any URL, ours or a competitor's. No API key needed.
+ */
+export async function pageAnalyzeHandler(args: { urls: string[]; keyword?: string }) {
+    const results = [];
+    for (const url of args.urls) {
+        results.push(await analyzePage(url, args.keyword));
+    }
+    return {
+        content: [{ type: 'text' as const, text: JSON.stringify(results, null, 2) }],
+    };
+}

@@ -71,6 +71,7 @@ import * as inspectionFluent from "./tools/fluent/inspection.js";
 import * as indexingFluent from "./tools/fluent/indexing.js";
 import * as seoFluent from "./tools/fluent/seo.js";
 import * as healthFluent from "./tools/fluent/health.js";
+import * as serpFluent from "./tools/fluent/serp.js";
 import { executeLegacyFallback, legacyFallbackMap, shouldUseLegacyFallback } from "./legacy/fallback-router.js";
 import { CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 
@@ -252,6 +253,51 @@ registerTool(
     cwvOnly: z.boolean().optional().describe("Return Core Web Vitals metrics only")
   },
   inspectionFluent.pagespeedAnalyzeHandler
+);
+
+// 4b. Competitive SERP analysis (Serper.dev)
+// Search Console only ever returns our own data; these tools supply the
+// competitor half and the on-page comparison that explains a position.
+registerTool(
+  "serp_lookup",
+  "Live Google results for a query via Serper, flagging your own listings. Requires SERPER_API_KEY.",
+  {
+    query: z.string().describe("The search query"),
+    siteUrl: z.string().optional().describe("Your site property, to flag which results are yours"),
+    location: z.string().optional().describe("Location string, e.g. 'Brisbane, Queensland, Australia'. Critical for local-intent queries"),
+    country: z.string().optional().describe("Country code, e.g. 'au' (default: au)"),
+    language: z.string().optional().describe("Language code, e.g. 'en' (default: en)"),
+    device: z.enum(["desktop", "mobile"]).optional().describe("Device (default: mobile)"),
+    num: z.number().optional().describe("Number of organic results, 10-100 (default: 20)")
+  },
+  serpFluent.serpLookupHandler
+);
+
+registerTool(
+  "serp_competitor_gap",
+  "Explain why pages outrank yours for a query: live SERP positions, Search Console context, and an on-page comparison of your page against those above it. Requires SERPER_API_KEY.",
+  {
+    siteUrl: z.string().describe("Your site property URL"),
+    query: z.string().describe("The search query to analyse"),
+    location: z.string().optional().describe("Location string, e.g. 'Brisbane, Queensland, Australia'"),
+    country: z.string().optional().describe("Country code (default: au)"),
+    language: z.string().optional().describe("Language code (default: en)"),
+    device: z.enum(["desktop", "mobile"]).optional().describe("Device (default: mobile)"),
+    num: z.number().optional().describe("SERP depth to fetch (default: 20)"),
+    compareTop: z.number().optional().describe("How many results above you to analyse on-page (default: 3)"),
+    skipPageAnalysis: z.boolean().optional().describe("Return SERP positions only, no page fetches")
+  },
+  serpFluent.serpCompetitorGapHandler
+);
+
+registerTool(
+  "page_analyze",
+  "Extract on-page SEO signals (title, meta, headings, word count, schema, links, images, keyword placement) for any URL, yours or a competitor's. No API key required.",
+  {
+    urls: z.array(z.string()).describe("URLs to analyse"),
+    keyword: z.string().optional().describe("Target term, to report keyword placement")
+  },
+  serpFluent.pageAnalyzeHandler
 );
 
 // 5. Indexing & URL Submission
