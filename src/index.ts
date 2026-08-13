@@ -264,7 +264,7 @@ registerTool(
   "site_profile",
   "Manage per-customer site profiles (location, service areas, brand terms, competitors, tracked queries). SERP and rank tools resolve their settings from here, so each customer's site is measured in its own market.",
   {
-    action: z.enum(["list", "get", "set", "delete"]).optional().describe("Operation (default: list)"),
+    action: z.enum(["list", "get", "set", "delete", "discover"]).optional().describe("Operation (default: list). 'discover' creates/refreshes a profile for every Search Console property and links its GA4 property."),
     siteUrl: z.string().optional().describe("The site property URL, e.g. sc-domain:example.com"),
     customer: z.string().optional().describe("Customer/business name"),
     ga4PropertyId: z.string().optional().describe("Linked GA4 property ID"),
