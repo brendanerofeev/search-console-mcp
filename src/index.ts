@@ -74,6 +74,7 @@ import * as healthFluent from "./tools/fluent/health.js";
 import * as serpFluent from "./tools/fluent/serp.js";
 import * as profilesFluent from "./tools/fluent/profiles.js";
 import * as trackingFluent from "./tools/fluent/tracking.js";
+import * as keywordsFluent from "./tools/fluent/keywords.js";
 import { executeLegacyFallback, legacyFallbackMap, shouldUseLegacyFallback } from "./legacy/fallback-router.js";
 import { CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 
@@ -369,6 +370,21 @@ registerTool(
     minImpressions: z.number().optional().describe("Minimum impressions to include in movers (default: 10)")
   },
   trackingFluent.rankHistoryHandler
+);
+
+// 4d. Keyword opportunity mining
+registerTool(
+  "keyword_candidates",
+  "Mine the local rank archive for keyword opportunities, classified by the action each implies (striking_distance, low_ctr, cannibalised, rising, falling, deep_potential) with an estimated monthly click upside.",
+  {
+    siteUrl: z.string().describe("The site property URL"),
+    days: z.number().optional().describe("Window in days (default: 90)"),
+    minImpressions: z.number().optional().describe("Minimum impressions to consider (default: 10)"),
+    limit: z.number().optional().describe("Max candidates (default: 50)"),
+    opportunity: z.enum(["striking_distance","low_ctr","rising","falling","cannibalised","deep_potential"]).optional().describe("Restrict to one opportunity class"),
+    groupByOpportunity: z.boolean().optional().describe("Group the results by opportunity class")
+  },
+  keywordsFluent.keywordCandidatesHandler
 );
 
 // 5. Indexing & URL Submission
