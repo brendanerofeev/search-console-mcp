@@ -16,6 +16,9 @@ RUN pnpm install --frozen-lockfile
 
 COPY tsconfig.json ./
 COPY src ./src
+# scripts/ holds copy-static.mjs, which the build script invokes to place the
+# UI's HTML/CSS/JS into dist/ (tsc only emits JavaScript).
+COPY scripts ./scripts
 RUN pnpm build
 
 RUN pnpm prune --prod
@@ -30,6 +33,7 @@ ENV NODE_ENV=production \
     PORT=4114
 
 COPY --from=builder --chown=node:node /app/node_modules ./node_modules
+# dist/ includes web/public, the browser-side bundle copied in by the build.
 COPY --from=builder --chown=node:node /app/dist ./dist
 COPY --chown=node:node package.json ./
 
