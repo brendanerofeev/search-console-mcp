@@ -1,0 +1,26 @@
+# Local development database.
+#
+#   docker compose -f docker-compose.dev.yml up -d
+#
+# Port 55432 avoids clashing with any local Postgres on 5432. Data persists in a
+# named volume, so restarting the container keeps whatever you've synced.
+services:
+  db:
+    image: postgres:16.6-alpine
+    container_name: sc-dev-db
+    environment:
+      POSTGRES_USER: search_console
+      POSTGRES_PASSWORD: devpassword
+      POSTGRES_DB: search_console
+    ports:
+      - "55432:5432"
+    volumes:
+      - sc-dev-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U search_console"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+volumes:
+  sc-dev-pgdata:

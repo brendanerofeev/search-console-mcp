@@ -25,7 +25,11 @@
     "docs": "typedoc",
     "pack:mcpb": "pnpm build && mcpb pack . search-console-mcp.mcpb",
     "deploy:registry": "mcp-publisher publish",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "dev": "tsx watch src/index.ts serve --port=4114",
+    "dev:db": "docker compose -f docker-compose.dev.yml up -d",
+    "dev:db:stop": "docker compose -f docker-compose.dev.yml down",
+    "dev:sync": "tsx src/index.ts run sync_run"
   },
   "keywords": [
     "mcp",
