@@ -72,6 +72,7 @@ import * as indexingFluent from "./tools/fluent/indexing.js";
 import * as seoFluent from "./tools/fluent/seo.js";
 import * as healthFluent from "./tools/fluent/health.js";
 import * as serpFluent from "./tools/fluent/serp.js";
+import * as profilesFluent from "./tools/fluent/profiles.js";
 import { executeLegacyFallback, legacyFallbackMap, shouldUseLegacyFallback } from "./legacy/fallback-router.js";
 import { CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 
@@ -253,6 +254,32 @@ registerTool(
     cwvOnly: z.boolean().optional().describe("Return Core Web Vitals metrics only")
   },
   inspectionFluent.pagespeedAnalyzeHandler
+);
+
+// 4a. Per-customer site profiles
+// These properties belong to different customers in different markets; rank is
+// location-dependent, so location/brand/competitor settings resolve per site.
+registerTool(
+  "site_profile",
+  "Manage per-customer site profiles (location, service areas, brand terms, competitors, tracked queries). SERP and rank tools resolve their settings from here, so each customer's site is measured in its own market.",
+  {
+    action: z.enum(["list", "get", "set", "delete"]).optional().describe("Operation (default: list)"),
+    siteUrl: z.string().optional().describe("The site property URL, e.g. sc-domain:example.com"),
+    customer: z.string().optional().describe("Customer/business name"),
+    ga4PropertyId: z.string().optional().describe("Linked GA4 property ID"),
+    country: z.string().optional().describe("Country code for SERP, e.g. 'au'"),
+    language: z.string().optional().describe("Language code for SERP, e.g. 'en'"),
+    device: z.enum(["mobile", "desktop"]).optional().describe("Default device for SERP checks"),
+    primaryLocation: z.string().optional().describe("Primary location, e.g. 'Brisbane, Queensland, Australia'"),
+    serviceAreas: z.array(z.string()).optional().describe("Additional locations to track rank from"),
+    brandTerms: z.array(z.string()).optional().describe("Brand terms, for brand vs non-brand splits"),
+    competitors: z.array(z.string()).optional().describe("Known competitor domains"),
+    trackedQueries: z.array(z.string()).optional().describe("Queries to track rank for"),
+    notes: z.string().optional().describe("Free-form notes"),
+    active: z.boolean().optional().describe("Whether the site is actively tracked"),
+    includeInactive: z.boolean().optional().describe("Include inactive sites when listing")
+  },
+  profilesFluent.siteProfileHandler
 );
 
 // 4b. Competitive SERP analysis (Serper.dev)

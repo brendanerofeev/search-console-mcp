@@ -1,6 +1,28 @@
 import { fetchSerp, isOwnResult } from '../../serp/client.js';
 import { analyzePage } from '../../serp/page-analysis.js';
 import { analyzeCompetitorGap } from '../../serp/competitors.js';
+import { resolveSerpSettings } from '../../store/profiles.js';
+
+/**
+ * Rank is location-dependent, and these properties belong to different customers
+ * in different markets, so SERP settings resolve from the site's profile unless
+ * the caller overrides them explicitly.
+ */
+function settingsFor(
+    siteUrl: string | undefined,
+    args: { location?: string; country?: string; language?: string; device?: 'desktop' | 'mobile' }
+) {
+    if (!siteUrl) {
+        return {
+            location: args.location,
+            country: args.country ?? 'au',
+            language: args.language ?? 'en',
+            device: args.device ?? ('mobile' as const),
+            profileFound: false,
+        };
+    }
+    return resolveSerpSettings(siteUrl, args);
+}
 
 /**
  * serp_lookup: Live Google results for a query, flagging our own listings.
@@ -14,7 +36,8 @@ export async function serpLookupHandler(args: {
     device?: 'desktop' | 'mobile';
     num?: number;
 }) {
-    const serp = await fetchSerp(args);
+    const settings = settingsFor(args.siteUrl, args);
+    const serp = await fetchSerp({ ...args, ...settings });
 
     const organic = serp.organic.map((r) => ({
         position: r.position,
@@ -33,8 +56,10 @@ export async function serpLookupHandler(args: {
                 text: JSON.stringify(
                     {
                         query: serp.query,
-                        location: args.location ?? process.env.SERPER_DEFAULT_LOCATION ?? null,
-                        device: args.device ?? 'mobile',
+                        location: settings.location ?? null,
+                        country: settings.country,
+                        device: settings.device,
+                        profileFound: settings.profileFound,
                         yourPositions: yours.map((r) => ({ position: r.position, link: r.link })),
                         organic,
                         peopleAlsoAsk: serp.peopleAlsoAsk,
@@ -63,9 +88,10 @@ export async function serpCompetitorGapHandler(args: {
     compareTop?: number;
     skipPageAnalysis?: boolean;
 }) {
-    const result = await analyzeCompetitorGap(args);
+    const settings = settingsFor(args.siteUrl, args);
+    const result = await analyzeCompetitorGap({ ...args, ...settings });
     return {
-        content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }],
+        content: [{ type: 'text' as const, text: JSON.stringify({ ...result, profileFound: settings.profileFound }, null, 2) }],
     };
 }
 
