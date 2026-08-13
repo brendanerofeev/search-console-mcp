@@ -23,6 +23,15 @@ export interface SiteProfile {
     competitors: string[];
     trackedQueries: string[];
     notes?: string;
+    /** What the business does — the half of keyword relevance GSC cannot supply. */
+    description?: string;
+    services: string[];
+    audiences: string[];
+    goals?: string;
+    /** Terms that must never become targets. */
+    exclusions: string[];
+    profileNotes?: string;
+    profileReviewedAt?: string;
     active: boolean;
     createdAt: string;
     updatedAt: string;
@@ -61,6 +70,17 @@ function rowToProfile(row: Record<string, any>): SiteProfile {
         competitors: toArray(row.competitors),
         trackedQueries: toArray(row.tracked_queries),
         notes: row.notes ?? undefined,
+        description: row.description ?? undefined,
+        services: toArray(row.services),
+        audiences: toArray(row.audiences),
+        goals: row.goals ?? undefined,
+        exclusions: toArray(row.exclusions),
+        profileNotes: row.profile_notes ?? undefined,
+        profileReviewedAt: row.profile_reviewed_at
+            ? (row.profile_reviewed_at instanceof Date
+                ? row.profile_reviewed_at.toISOString()
+                : String(row.profile_reviewed_at))
+            : undefined,
         active: !!row.active,
         createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
         updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at),
@@ -103,14 +123,23 @@ export async function upsertProfile(input: SiteProfileInput): Promise<SiteProfil
         JSON.stringify(input.trackedQueries ?? existing?.trackedQueries ?? []),
         input.notes ?? existing?.notes ?? null,
         input.active ?? existing?.active ?? true,
+        input.description ?? existing?.description ?? null,
+        JSON.stringify(input.services ?? existing?.services ?? []),
+        JSON.stringify(input.audiences ?? existing?.audiences ?? []),
+        input.goals ?? existing?.goals ?? null,
+        JSON.stringify(input.exclusions ?? existing?.exclusions ?? []),
+        input.profileNotes ?? existing?.profileNotes ?? null,
+        input.profileReviewedAt ?? existing?.profileReviewedAt ?? null,
     ];
 
     await query(
         `INSERT INTO site_profile (
             site_url, customer, domain, ga4_property_id, country, language, device,
             primary_location, service_areas, brand_terms, competitors, tracked_queries,
-            notes, active, updated_at
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11::jsonb,$12::jsonb,$13,$14, now())
+            notes, active, description, services, audiences, goals, exclusions,
+            profile_notes, profile_reviewed_at, updated_at
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11::jsonb,$12::jsonb,$13,$14,
+                   $15,$16::jsonb,$17::jsonb,$18,$19::jsonb,$20,$21::timestamptz, now())
          ON CONFLICT (site_url) DO UPDATE SET
             customer = EXCLUDED.customer,
             domain = EXCLUDED.domain,
@@ -125,6 +154,13 @@ export async function upsertProfile(input: SiteProfileInput): Promise<SiteProfil
             tracked_queries = EXCLUDED.tracked_queries,
             notes = EXCLUDED.notes,
             active = EXCLUDED.active,
+            description = EXCLUDED.description,
+            services = EXCLUDED.services,
+            audiences = EXCLUDED.audiences,
+            goals = EXCLUDED.goals,
+            exclusions = EXCLUDED.exclusions,
+            profile_notes = EXCLUDED.profile_notes,
+            profile_reviewed_at = EXCLUDED.profile_reviewed_at,
             updated_at = now()`,
         merged
     );

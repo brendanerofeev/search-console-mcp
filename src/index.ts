@@ -75,6 +75,7 @@ import * as serpFluent from "./tools/fluent/serp.js";
 import * as profilesFluent from "./tools/fluent/profiles.js";
 import * as trackingFluent from "./tools/fluent/tracking.js";
 import * as keywordsFluent from "./tools/fluent/keywords.js";
+import * as businessFluent from "./tools/fluent/business.js";
 import { executeLegacyFallback, legacyFallbackMap, shouldUseLegacyFallback } from "./legacy/fallback-router.js";
 import { CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 
@@ -370,6 +371,28 @@ registerTool(
     minImpressions: z.number().optional().describe("Minimum impressions to include in movers (default: 10)")
   },
   trackingFluent.rankHistoryHandler
+);
+
+// 4c-bis. Business profiles
+// Search Console only ever surfaces terms a site ALREADY appears for, so it can
+// never propose a service the client sells but has never ranked for. The
+// business profile supplies that half of the keyword input.
+registerTool(
+  "business_profile",
+  "The human-authored description of what a business does (services, audiences, goals, exclusions). 'gather' reads the live site and returns EVIDENCE to write the profile from; 'set' records it; 'status' shows which sites still need one.",
+  {
+    action: z.enum(["get", "set", "gather", "status"]).optional().describe("Operation (default: get)"),
+    siteUrl: z.string().optional().describe("The site property URL"),
+    description: z.string().optional().describe("What the business does, in prose"),
+    services: z.array(z.string()).optional().describe("Services/products offered"),
+    audiences: z.array(z.string()).optional().describe("Who they sell to"),
+    goals: z.string().optional().describe("Commercial goals this SEO work serves"),
+    exclusions: z.array(z.string()).optional().describe("Terms that must never become targets"),
+    profileNotes: z.string().optional().describe("Free-form notes"),
+    markReviewed: z.boolean().optional().describe("Mark the profile as human-reviewed"),
+    maxPages: z.number().optional().describe("Service pages to sample when gathering (default: 8)")
+  },
+  businessFluent.businessProfileHandler
 );
 
 // 4d. Keyword opportunity mining

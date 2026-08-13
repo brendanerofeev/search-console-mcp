@@ -153,6 +153,57 @@ CREATE TABLE IF NOT EXISTS sync_state (
   key   TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
+
+-- What the business actually does. Keyword relevance cannot be judged from
+-- Search Console alone: GSC only shows terms we ALREADY appear for, so it can
+-- never propose a service we sell but have never ranked for. This is the other
+-- half of the input, and it is human-authored per customer.
+ALTER TABLE site_profile ADD COLUMN IF NOT EXISTS description   TEXT;
+ALTER TABLE site_profile ADD COLUMN IF NOT EXISTS services      JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE site_profile ADD COLUMN IF NOT EXISTS audiences     JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE site_profile ADD COLUMN IF NOT EXISTS goals         TEXT;
+-- Terms that must never become targets (wrong service, wrong region, competitor
+-- brands we cannot win, job-seeker intent).
+ALTER TABLE site_profile ADD COLUMN IF NOT EXISTS exclusions    JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE site_profile ADD COLUMN IF NOT EXISTS profile_notes TEXT;
+ALTER TABLE site_profile ADD COLUMN IF NOT EXISTS profile_reviewed_at TIMESTAMPTZ;
+
+-- Keyword candidates from every source, with provenance kept so a term backed
+-- by three independent sources can outrank one backed by a guess.
+CREATE TABLE IF NOT EXISTS keyword_candidate (
+  site_url     TEXT NOT NULL,
+  keyword      TEXT NOT NULL,
+  source       TEXT NOT NULL,          -- gsc | profile | serper | ads | manual
+  opportunity  TEXT,                   -- classification when it came from GSC
+  impressions  DOUBLE PRECISION,
+  position     DOUBLE PRECISION,
+  search_volume INTEGER,               -- Ads Keyword Planner, when available
+  competition  TEXT,
+  score        DOUBLE PRECISION NOT NULL DEFAULT 0,
+  click_upside DOUBLE PRECISION,
+  rationale    TEXT,
+  -- pending | targeted | rejected. Set by a human reviewing the report.
+  status       TEXT NOT NULL DEFAULT 'pending',
+  first_seen   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_seen    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (site_url, keyword, source)
+);
+CREATE INDEX IF NOT EXISTS idx_kw_candidate_status ON keyword_candidate (site_url, status);
+
+-- The keywords we have decided to shoot for. This is the operational worklist:
+-- most day-to-day effort is moving these up, not finding new ones.
+CREATE TABLE IF NOT EXISTS keyword_target (
+  site_url        TEXT NOT NULL,
+  keyword         TEXT NOT NULL,
+  target_page     TEXT,                -- the page that SHOULD win it
+  target_position INTEGER NOT NULL DEFAULT 5,
+  priority        INTEGER NOT NULL DEFAULT 3,   -- 1 highest
+  status          TEXT NOT NULL DEFAULT 'active', -- active | won | parked
+  notes           TEXT,
+  added_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (site_url, keyword)
+);
+CREATE INDEX IF NOT EXISTS idx_kw_target_status ON keyword_target (site_url, status);
 `;
 
 /** Create the schema once per process. Safe to call from every entry point. */
