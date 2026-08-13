@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Search Console</title>
+<link rel="stylesheet" href="/styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#128200;</text></svg>">
+</head>
+<body>
+
+<div id="login" class="login hidden">
+  <form id="login-form" class="login-card">
+    <h1>Search Console</h1>
+    <p class="muted">Internal reporting</p>
+    <input type="password" id="password" placeholder="Password" autocomplete="current-password" required>
+    <button type="submit">Sign in</button>
+    <p id="login-error" class="error hidden">Incorrect password</p>
+  </form>
+</div>
+
+<div id="app" class="hidden">
+  <header>
+    <div class="brand" id="home-link">Search&nbsp;Console</div>
+    <nav id="crumbs"></nav>
+    <div class="spacer"></div>
+    <select id="range">
+      <option value="28">28 days</option>
+      <option value="90" selected>90 days</option>
+      <option value="180">180 days</option>
+      <option value="365">12 months</option>
+    </select>
+    <button id="logout" class="ghost">Sign out</button>
+  </header>
+
+  <main id="view"></main>
+  <footer id="footer" class="muted"></footer>
+</div>
+
+<script src="/app.js"></script>
+</body>
+</html>

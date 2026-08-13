@@ -14,7 +14,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node scripts/copy-static.mjs",
     "test": "vitest run",
     "inspector": "npx @modelcontextprotocol/inspector@latest node dist/index.js",
     "test:live:google": "tsx tests/live-google-test.ts",

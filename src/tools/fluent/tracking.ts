@@ -182,9 +182,15 @@ export async function rankHistoryHandler(args: {
         pos_before: number;
         pos_after: number;
     }>(
+        // The midpoint is derived from the data actually present rather than the
+        // requested window: splitting a 90-day window at day 45 when the archive
+        // only holds 11 days puts every row on one side, so nothing ever moves.
         `WITH bounds AS (
-           SELECT (CURRENT_DATE - ($2 || ' days')::interval)::date       AS since,
-                  (CURRENT_DATE - ($3 || ' days')::interval)::date       AS mid
+           SELECT (CURRENT_DATE - ($2 || ' days')::interval)::date AS since,
+                  (SELECT MIN(date) + ((MAX(date) - MIN(date)) / 2)
+                     FROM rank_daily
+                    WHERE site_url = $1
+                      AND date >= (CURRENT_DATE - ($2 || ' days')::interval)::date)::date AS mid
          )
          SELECT query,
                 SUM(CASE WHEN date <  b.mid THEN impressions ELSE 0 END) AS impr_before,
@@ -200,8 +206,8 @@ export async function rankHistoryHandler(args: {
           GROUP BY query
          HAVING SUM(CASE WHEN date <  b.mid THEN impressions ELSE 0 END) > 0
             AND SUM(CASE WHEN date >= b.mid THEN impressions ELSE 0 END) > 0
-            AND SUM(impressions) >= $4`,
-        [args.siteUrl, String(days), String(days / 2), args.minImpressions ?? 10]
+            AND SUM(impressions) >= $3`,
+        [args.siteUrl, String(days), args.minImpressions ?? 10]
     );
 
     const shape = (r: (typeof rows)[number]) => ({
