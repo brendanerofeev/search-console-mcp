@@ -62,7 +62,7 @@ const sites = (siteList.siteEntry ?? []).map((s) => s.siteUrl).filter((u): u is 
 for (const siteUrl of sites) {
     const domain = toDomain(siteUrl);
     const ga4 = ga4ByHost.get(domain);
-    const profile = upsertProfile({
+    const profile = await upsertProfile({
         siteUrl,
         domain,
         // The GA4 account name is the closest thing to a customer name we can
@@ -76,7 +76,7 @@ for (const siteUrl of sites) {
     );
 }
 
-const all = listProfiles(true);
+const all = await listProfiles(true);
 const missingLocation = all.filter((p) => !p.primaryLocation);
 console.log(`\n${all.length} site profiles stored.`);
 if (missingLocation.length) {

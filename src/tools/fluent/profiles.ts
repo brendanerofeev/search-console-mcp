@@ -26,12 +26,12 @@ export async function siteProfileHandler(args: {
 
     switch (action) {
         case 'list':
-            payload = listProfiles(args.includeInactive ?? false);
+            payload = await listProfiles(args.includeInactive ?? false);
             break;
 
         case 'get': {
             if (!args.siteUrl) throw new Error("siteUrl is required for action 'get'.");
-            const profile = getProfile(args.siteUrl);
+            const profile = await getProfile(args.siteUrl);
             payload = profile ?? { error: `No profile for ${args.siteUrl}. Use action 'set' to create one.` };
             break;
         }
@@ -39,13 +39,13 @@ export async function siteProfileHandler(args: {
         case 'set': {
             const { siteUrl, action: _action, includeInactive: _includeInactive, ...fields } = args;
             if (!siteUrl) throw new Error("siteUrl is required for action 'set'.");
-            payload = upsertProfile({ siteUrl, ...fields });
+            payload = await upsertProfile({ siteUrl, ...fields });
             break;
         }
 
         case 'delete': {
             if (!args.siteUrl) throw new Error("siteUrl is required for action 'delete'.");
-            payload = { siteUrl: args.siteUrl, deleted: deleteProfile(args.siteUrl) };
+            payload = { siteUrl: args.siteUrl, deleted: await deleteProfile(args.siteUrl) };
             break;
         }
 

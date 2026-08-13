@@ -10,7 +10,7 @@
  *  - SERP positions: billed per Serper call and retained by nobody else.
  */
 import * as cheerio from 'cheerio';
-import { getDb, isoDate, nowIso, toDomain } from './db.js';
+import { query, withTransaction, isoDate, nowIso, toDomain } from './db.js';
 import { listProfiles, getProfile, type SiteProfile } from './profiles.js';
 import { queryAnalytics } from '../google/tools/analytics.js';
 import { listSitemaps } from '../google/tools/sitemaps.js';
@@ -41,21 +41,12 @@ export interface SyncResult {
  *   lag, so a window wider than the gap since the last run repairs late arrivals.
  */
 export async function syncRankHistory(siteUrl: string, days = 10): Promise<SyncResult> {
-    const db = getDb();
     const end = new Date();
     // GSC finalises with a lag; ending "today" just returns empty recent days.
     end.setDate(end.getDate() - 2);
     const start = new Date(end);
     start.setDate(start.getDate() - days);
     const fmt = (d: Date) => d.toISOString().slice(0, 10);
-
-    const insert = db.prepare(
-        `INSERT INTO rank_daily (site_url, date, query, page, clicks, impressions, ctr, position)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT(site_url, date, query, page) DO UPDATE SET
-           clicks = excluded.clicks, impressions = excluded.impressions,
-           ctr = excluded.ctr, position = excluded.position`
-    );
 
     let written = 0;
     let startRow = 0;
@@ -74,19 +65,25 @@ export async function syncRankHistory(siteUrl: string, days = 10): Promise<SyncR
             });
             if (!rows.length) break;
 
-            const tx = db.transaction((batch: typeof rows) => {
-                for (const r of batch) {
-                    const [date, query, page] = r.keys ?? [];
-                    if (!date || !query) continue;
-                    insert.run(
-                        siteUrl, date, query, page ?? '',
-                        Number(r.clicks ?? 0), Number(r.impressions ?? 0),
-                        Number(r.ctr ?? 0), Number(r.position ?? 0)
+            await withTransaction(async (client) => {
+                for (const r of rows) {
+                    const [date, q, page] = r.keys ?? [];
+                    if (!date || !q) continue;
+                    await client.query(
+                        `INSERT INTO rank_daily (site_url, date, query, page, clicks, impressions, ctr, position)
+                         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+                         ON CONFLICT (site_url, date, query, page) DO UPDATE SET
+                           clicks = EXCLUDED.clicks, impressions = EXCLUDED.impressions,
+                           ctr = EXCLUDED.ctr, position = EXCLUDED.position`,
+                        [
+                            siteUrl, date, q, page ?? '',
+                            Number(r.clicks ?? 0), Number(r.impressions ?? 0),
+                            Number(r.ctr ?? 0), Number(r.position ?? 0),
+                        ]
                     );
                     written++;
                 }
             });
-            tx(rows);
 
             if (rows.length < PAGE) break;
             startRow += PAGE;
@@ -95,7 +92,7 @@ export async function syncRankHistory(siteUrl: string, days = 10): Promise<SyncR
         return { siteUrl, task: 'rank', ok: false, detail: (e as Error).message };
     }
 
-    setSyncState(`rank:${siteUrl}`, nowIso());
+    await setSyncState(`rank:${siteUrl}`, nowIso());
     return {
         siteUrl,
         task: 'rank',
@@ -147,7 +144,6 @@ async function fetchSitemapUrls(feedUrl: string, depth = 0): Promise<{ url: stri
 
 /** Record every URL advertised in the property's sitemaps. */
 export async function syncSitemapUrls(siteUrl: string): Promise<SyncResult> {
-    const db = getDb();
     let feeds: string[];
     try {
         feeds = (await listSitemaps(siteUrl)).map((s) => s.path).filter((p): p is string => Boolean(p));
@@ -159,22 +155,21 @@ export async function syncSitemapUrls(siteUrl: string): Promise<SyncResult> {
     }
 
     const found = (await limitConcurrency(feeds, 3, (f) => fetchSitemapUrls(f))).flat();
-    const now = nowIso();
-    const insert = db.prepare(
-        `INSERT INTO url_discovery (site_url, url, source, lastmod, first_seen, last_seen)
-         VALUES (?, ?, 'sitemap', ?, ?, ?)
-         ON CONFLICT(site_url, url) DO UPDATE SET
-           lastmod = excluded.lastmod, last_seen = excluded.last_seen`
-    );
     const seen = new Set<string>();
-    const tx = db.transaction(() => {
+
+    await withTransaction(async (client) => {
         for (const { url, lastmod } of found) {
             if (seen.has(url)) continue;
             seen.add(url);
-            insert.run(siteUrl, url, lastmod ?? null, now, now);
+            await client.query(
+                `INSERT INTO url_discovery (site_url, url, source, lastmod, first_seen, last_seen)
+                 VALUES ($1,$2,'sitemap',$3, now(), now())
+                 ON CONFLICT (site_url, url) DO UPDATE SET
+                   lastmod = EXCLUDED.lastmod, last_seen = now()`,
+                [siteUrl, url, lastmod ?? null]
+            );
         }
     });
-    tx();
 
     return {
         siteUrl,
@@ -188,20 +183,20 @@ export async function syncSitemapUrls(siteUrl: string): Promise<SyncResult> {
 // --------------------------------------------------------------- index status
 
 /** Calls already spent against this property today. */
-function quotaUsedToday(siteUrl: string): number {
-    const row = getDb()
-        .prepare('SELECT calls FROM quota_usage WHERE site_url = ? AND day = ?')
-        .get(siteUrl, isoDate()) as { calls: number } | undefined;
-    return row?.calls ?? 0;
+async function quotaUsedToday(siteUrl: string): Promise<number> {
+    const rows = await query<{ calls: number }>(
+        'SELECT calls FROM quota_usage WHERE site_url = $1 AND day = $2',
+        [siteUrl, isoDate()]
+    );
+    return rows[0]?.calls ?? 0;
 }
 
-function recordQuota(siteUrl: string, calls: number): void {
-    getDb()
-        .prepare(
-            `INSERT INTO quota_usage (site_url, day, calls) VALUES (?, ?, ?)
-             ON CONFLICT(site_url, day) DO UPDATE SET calls = calls + excluded.calls`
-        )
-        .run(siteUrl, isoDate(), calls);
+async function recordQuota(siteUrl: string, calls: number): Promise<void> {
+    await query(
+        `INSERT INTO quota_usage (site_url, day, calls) VALUES ($1,$2,$3)
+         ON CONFLICT (site_url, day) DO UPDATE SET calls = quota_usage.calls + EXCLUDED.calls`,
+        [siteUrl, isoDate(), calls]
+    );
 }
 
 /**
@@ -215,61 +210,35 @@ export async function syncIndexStatus(
     siteUrl: string,
     opts: { budget?: number; freshDays?: number; staleDays?: number } = {}
 ): Promise<SyncResult> {
-    const db = getDb();
     const budget = Math.max(0, Math.min(opts.budget ?? DEFAULT_INSPECTION_BUDGET, INSPECTION_DAILY_QUOTA));
-    const used = quotaUsedToday(siteUrl);
+    const used = await quotaUsedToday(siteUrl);
     const remaining = Math.max(0, budget - used);
     if (remaining === 0) {
         return { siteUrl, task: 'index', ok: true, detail: `daily budget exhausted (${used}/${budget})` };
     }
 
     // Healthy pages are re-checked rarely; problem pages often.
-    const freshCutoff = new Date(Date.now() - (opts.freshDays ?? 30) * 86_400_000).toISOString();
-    const staleCutoff = new Date(Date.now() - (opts.staleDays ?? 7) * 86_400_000).toISOString();
+    const freshDays = opts.freshDays ?? 30;
+    const staleDays = opts.staleDays ?? 7;
 
-    const candidates = db
-        .prepare(
-            `SELECT d.url,
-                    s.inspected_at,
-                    s.verdict
-               FROM url_discovery d
-               LEFT JOIN url_status s ON s.site_url = d.site_url AND s.url = d.url
-              WHERE d.site_url = @site
-                AND (
-                      s.url IS NULL
-                   OR (s.verdict = 'PASS' AND s.inspected_at < @fresh)
-                   OR (s.verdict IS NOT 'PASS' AND s.inspected_at < @stale)
-                )
-              ORDER BY (s.url IS NULL) DESC, s.inspected_at ASC
-              LIMIT @limit`
-        )
-        .all({ site: siteUrl, fresh: freshCutoff, stale: staleCutoff, limit: remaining }) as {
-        url: string;
-    }[];
+    const candidates = await query<{ url: string }>(
+        `SELECT d.url
+           FROM url_discovery d
+           LEFT JOIN url_status s ON s.site_url = d.site_url AND s.url = d.url
+          WHERE d.site_url = $1
+            AND (
+                  s.url IS NULL
+               OR (s.verdict = 'PASS' AND s.inspected_at < now() - ($2 || ' days')::interval)
+               OR (s.verdict IS DISTINCT FROM 'PASS' AND s.inspected_at < now() - ($3 || ' days')::interval)
+            )
+          ORDER BY (s.url IS NULL) DESC, s.inspected_at ASC NULLS FIRST
+          LIMIT $4`,
+        [siteUrl, String(freshDays), String(staleDays), remaining]
+    );
 
     if (!candidates.length) {
         return { siteUrl, task: 'index', ok: true, detail: 'all discovered URLs are fresh' };
     }
-
-    const upsert = db.prepare(
-        `INSERT INTO url_status (
-            site_url, url, verdict, coverage_state, robots_txt_state, indexing_state,
-            page_fetch_state, google_canonical, user_canonical, crawled_as,
-            last_crawl_time, sitemaps, referring_urls, rich_results, inspected_at, raw
-         ) VALUES (
-            @site_url, @url, @verdict, @coverage_state, @robots_txt_state, @indexing_state,
-            @page_fetch_state, @google_canonical, @user_canonical, @crawled_as,
-            @last_crawl_time, @sitemaps, @referring_urls, @rich_results, @inspected_at, @raw
-         )
-         ON CONFLICT(site_url, url) DO UPDATE SET
-            verdict = excluded.verdict, coverage_state = excluded.coverage_state,
-            robots_txt_state = excluded.robots_txt_state, indexing_state = excluded.indexing_state,
-            page_fetch_state = excluded.page_fetch_state, google_canonical = excluded.google_canonical,
-            user_canonical = excluded.user_canonical, crawled_as = excluded.crawled_as,
-            last_crawl_time = excluded.last_crawl_time, sitemaps = excluded.sitemaps,
-            referring_urls = excluded.referring_urls, rich_results = excluded.rich_results,
-            inspected_at = excluded.inspected_at, raw = excluded.raw`
-    );
 
     let inspected = 0;
     let failed = 0;
@@ -278,47 +247,50 @@ export async function syncIndexStatus(
     // to gain from hammering and plenty to lose if Google rate-limits us.
     const results = await limitConcurrency(candidates.map((c) => c.url), 4, async (url) => {
         try {
-            const res = await inspectUrl(siteUrl, url);
-            return { url, res };
+            return { url, res: await inspectUrl(siteUrl, url) };
         } catch (e) {
             return { url, error: (e as Error).message };
         }
     });
 
-    const now = nowIso();
-    const tx = db.transaction(() => {
+    await withTransaction(async (client) => {
         for (const r of results) {
             if ('error' in r && r.error) {
                 failed++;
                 continue;
             }
-            const idx = (r as any).res?.inspectionResult?.indexStatusResult ?? {};
-            upsert.run({
-                site_url: siteUrl,
-                url: r.url,
-                verdict: idx.verdict ?? null,
-                coverage_state: idx.coverageState ?? null,
-                robots_txt_state: idx.robotsTxtState ?? null,
-                indexing_state: idx.indexingState ?? null,
-                page_fetch_state: idx.pageFetchState ?? null,
-                google_canonical: idx.googleCanonical ?? null,
-                user_canonical: idx.userCanonical ?? null,
-                crawled_as: idx.crawledAs ?? null,
-                last_crawl_time: idx.lastCrawlTime ?? null,
-                sitemaps: idx.sitemap ? JSON.stringify(idx.sitemap) : null,
-                referring_urls: idx.referringUrls ? JSON.stringify(idx.referringUrls) : null,
-                rich_results: (r as any).res?.inspectionResult?.richResultsResult
-                    ? JSON.stringify((r as any).res.inspectionResult.richResultsResult)
-                    : null,
-                inspected_at: now,
-                raw: JSON.stringify((r as any).res ?? {}),
-            });
+            const result = (r as any).res?.inspectionResult ?? {};
+            const idx = result.indexStatusResult ?? {};
+            await client.query(
+                `INSERT INTO url_status (
+                    site_url, url, verdict, coverage_state, robots_txt_state, indexing_state,
+                    page_fetch_state, google_canonical, user_canonical, crawled_as,
+                    last_crawl_time, sitemaps, referring_urls, rich_results, inspected_at, raw
+                 ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13::jsonb,$14::jsonb, now(), $15::jsonb)
+                 ON CONFLICT (site_url, url) DO UPDATE SET
+                    verdict = EXCLUDED.verdict, coverage_state = EXCLUDED.coverage_state,
+                    robots_txt_state = EXCLUDED.robots_txt_state, indexing_state = EXCLUDED.indexing_state,
+                    page_fetch_state = EXCLUDED.page_fetch_state, google_canonical = EXCLUDED.google_canonical,
+                    user_canonical = EXCLUDED.user_canonical, crawled_as = EXCLUDED.crawled_as,
+                    last_crawl_time = EXCLUDED.last_crawl_time, sitemaps = EXCLUDED.sitemaps,
+                    referring_urls = EXCLUDED.referring_urls, rich_results = EXCLUDED.rich_results,
+                    inspected_at = now(), raw = EXCLUDED.raw`,
+                [
+                    siteUrl, r.url,
+                    idx.verdict ?? null, idx.coverageState ?? null, idx.robotsTxtState ?? null,
+                    idx.indexingState ?? null, idx.pageFetchState ?? null, idx.googleCanonical ?? null,
+                    idx.userCanonical ?? null, idx.crawledAs ?? null, idx.lastCrawlTime ?? null,
+                    idx.sitemap ? JSON.stringify(idx.sitemap) : null,
+                    idx.referringUrls ? JSON.stringify(idx.referringUrls) : null,
+                    result.richResultsResult ? JSON.stringify(result.richResultsResult) : null,
+                    JSON.stringify((r as any).res ?? {}),
+                ]
+            );
             inspected++;
         }
     });
-    tx();
 
-    recordQuota(siteUrl, inspected + failed);
+    await recordQuota(siteUrl, inspected + failed);
 
     return {
         siteUrl,
@@ -335,7 +307,7 @@ export async function syncIndexStatus(
  * Record live SERP positions for a site's tracked queries, from its own market.
  */
 export async function syncSerpPositions(siteUrl: string, maxQueries = 25): Promise<SyncResult> {
-    const profile = getProfile(siteUrl);
+    const profile = await getProfile(siteUrl);
     if (!profile) return { siteUrl, task: 'serp', ok: false, detail: 'no site profile' };
 
     const queries = profile.trackedQueries.slice(0, maxQueries);
@@ -346,25 +318,16 @@ export async function syncSerpPositions(siteUrl: string, maxQueries = 25): Promi
         return { siteUrl, task: 'serp', ok: false, detail: 'SERPER_API_KEY not set' };
     }
 
-    const db = getDb();
     const date = isoDate();
-    const insert = db.prepare(
-        `INSERT INTO serp_daily (site_url, date, query, location, device, position, url, domain, is_ours, title)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT(site_url, date, query, location, device, position) DO UPDATE SET
-           url = excluded.url, domain = excluded.domain,
-           is_ours = excluded.is_ours, title = excluded.title`
-    );
-
     const location = profile.primaryLocation ?? '';
     let rows = 0;
     let credits = 0;
     const failures: string[] = [];
 
-    for (const query of queries) {
+    for (const q of queries) {
         try {
             const serp = await fetchSerp({
-                query,
+                query: q,
                 country: profile.country,
                 language: profile.language,
                 device: profile.device,
@@ -372,18 +335,24 @@ export async function syncSerpPositions(siteUrl: string, maxQueries = 25): Promi
                 num: 20,
             });
             credits += serp.credits ?? 1;
-            const tx = db.transaction(() => {
+            await withTransaction(async (client) => {
                 for (const r of serp.organic) {
-                    insert.run(
-                        siteUrl, date, query, location, profile.device, r.position,
-                        r.link, toDomain(r.link), isOwnResult(r.link, siteUrl) ? 1 : 0, r.title ?? null
+                    await client.query(
+                        `INSERT INTO serp_daily (site_url, date, query, location, device, position, url, domain, is_ours, title)
+                         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+                         ON CONFLICT (site_url, date, query, location, device, position) DO UPDATE SET
+                           url = EXCLUDED.url, domain = EXCLUDED.domain,
+                           is_ours = EXCLUDED.is_ours, title = EXCLUDED.title`,
+                        [
+                            siteUrl, date, q, location, profile.device, r.position,
+                            r.link, toDomain(r.link), isOwnResult(r.link, siteUrl), r.title ?? null,
+                        ]
                     );
                     rows++;
                 }
             });
-            tx();
         } catch (e) {
-            failures.push(`${query}: ${(e as Error).message}`);
+            failures.push(`${q}: ${(e as Error).message}`);
         }
     }
 
@@ -391,7 +360,8 @@ export async function syncSerpPositions(siteUrl: string, maxQueries = 25): Promi
         siteUrl,
         task: 'serp',
         ok: failures.length < queries.length,
-        detail: `${rows} positions for ${queries.length - failures.length}/${queries.length} queries, ~${credits} credits` +
+        detail:
+            `${rows} positions for ${queries.length - failures.length}/${queries.length} queries, ~${credits} credits` +
             (failures.length ? `; failures: ${failures.slice(0, 3).join('; ')}` : ''),
         counts: { rows, credits, failed: failures.length },
     };
@@ -411,8 +381,8 @@ export interface SyncAllOptions {
 export async function syncAll(opts: SyncAllOptions = {}): Promise<SyncResult[]> {
     const tasks = opts.tasks ?? ['rank', 'sitemap', 'index', 'serp'];
     const profiles: SiteProfile[] = opts.siteUrl
-        ? ([getProfile(opts.siteUrl)].filter(Boolean) as SiteProfile[])
-        : listProfiles();
+        ? ([await getProfile(opts.siteUrl)].filter(Boolean) as SiteProfile[])
+        : await listProfiles();
 
     const results: SyncResult[] = [];
     for (const profile of profiles) {
@@ -425,19 +395,18 @@ export async function syncAll(opts: SyncAllOptions = {}): Promise<SyncResult[]> 
         }
         if (tasks.includes('serp')) results.push(await syncSerpPositions(profile.siteUrl));
     }
-    setSyncState('lastRun', nowIso());
+    await setSyncState('lastRun', nowIso());
     return results;
 }
 
-export function setSyncState(key: string, value: string): void {
-    getDb()
-        .prepare('INSERT INTO sync_state (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value')
-        .run(key, value);
+export async function setSyncState(key: string, value: string): Promise<void> {
+    await query(
+        'INSERT INTO sync_state (key, value) VALUES ($1,$2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value',
+        [key, value]
+    );
 }
 
-export function getSyncState(key: string): string | undefined {
-    const row = getDb().prepare('SELECT value FROM sync_state WHERE key = ?').get(key) as
-        | { value: string }
-        | undefined;
-    return row?.value;
+export async function getSyncState(key: string): Promise<string | undefined> {
+    const rows = await query<{ value: string }>('SELECT value FROM sync_state WHERE key = $1', [key]);
+    return rows[0]?.value;
 }

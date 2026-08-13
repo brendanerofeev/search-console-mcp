@@ -1,15 +1,9 @@
 # syntax=docker/dockerfile:1.7
 
-# --- builder: install deps (incl. better-sqlite3 native binding) + compile TS ---
+# --- builder: install deps + compile TypeScript ---
+# No native toolchain needed: the store uses `pg`, which is pure JavaScript.
 FROM node:22-slim AS builder
 WORKDIR /app
-
-# better-sqlite3 ships prebuilt binaries for linux-x64, but keep a toolchain
-# available so the build still succeeds if the prebuild is ever missing for the
-# running ABI rather than failing the whole image.
-RUN apt-get update \
- && apt-get install -y --no-install-recommends python3 make g++ ca-certificates \
- && rm -rf /var/lib/apt/lists/*
 
 RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 
@@ -21,28 +15,20 @@ COPY tsconfig.json ./
 COPY src ./src
 RUN pnpm build
 
-# Drop dev dependencies; compiled native bindings in node_modules are preserved.
 RUN pnpm prune --prod
 
 # --- runtime: compiled output + production deps only ---
 FROM node:22-slim AS runtime
 WORKDIR /app
 
-# Enables the production auth guard: index.ts refuses to serve HTTP without
-# MCP_AUTH_TOKEN when NODE_ENV=production.
+# NODE_ENV=production enables the auth guard: index.ts refuses to serve HTTP
+# without MCP_AUTH_TOKEN, rather than silently publishing an open endpoint.
 ENV NODE_ENV=production \
-    PORT=4114 \
-    SEO_DB_PATH=/app/data/seo.db
+    PORT=4114
 
 COPY --from=builder --chown=node:node /app/node_modules ./node_modules
 COPY --from=builder --chown=node:node /app/dist ./dist
 COPY --chown=node:node package.json ./
-
-# The archive (rank history, index cache) lives here and must be a mounted
-# volume — it is the one thing in this container that cannot be rebuilt, since
-# Search Console's window rolls and deletes.
-RUN mkdir -p /app/data && chown -R node:node /app/data
-VOLUME ["/app/data"]
 
 USER node
 EXPOSE 4114

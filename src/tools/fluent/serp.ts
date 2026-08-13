@@ -8,7 +8,7 @@ import { resolveSerpSettings } from '../../store/profiles.js';
  * in different markets, so SERP settings resolve from the site's profile unless
  * the caller overrides them explicitly.
  */
-function settingsFor(
+async function settingsFor(
     siteUrl: string | undefined,
     args: { location?: string; country?: string; language?: string; device?: 'desktop' | 'mobile' }
 ) {
@@ -36,7 +36,7 @@ export async function serpLookupHandler(args: {
     device?: 'desktop' | 'mobile';
     num?: number;
 }) {
-    const settings = settingsFor(args.siteUrl, args);
+    const settings = await settingsFor(args.siteUrl, args);
     const serp = await fetchSerp({ ...args, ...settings });
 
     const organic = serp.organic.map((r) => ({
@@ -88,7 +88,7 @@ export async function serpCompetitorGapHandler(args: {
     compareTop?: number;
     skipPageAnalysis?: boolean;
 }) {
-    const settings = settingsFor(args.siteUrl, args);
+    const settings = await settingsFor(args.siteUrl, args);
     const result = await analyzeCompetitorGap({ ...args, ...settings });
     return {
         content: [{ type: 'text' as const, text: JSON.stringify({ ...result, profileFound: settings.profileFound }, null, 2) }],
