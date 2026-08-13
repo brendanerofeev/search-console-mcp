@@ -76,6 +76,7 @@ import * as profilesFluent from "./tools/fluent/profiles.js";
 import * as trackingFluent from "./tools/fluent/tracking.js";
 import * as keywordsFluent from "./tools/fluent/keywords.js";
 import * as businessFluent from "./tools/fluent/business.js";
+import * as reportFluent from "./tools/fluent/report.js";
 import { executeLegacyFallback, legacyFallbackMap, shouldUseLegacyFallback } from "./legacy/fallback-router.js";
 import { CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 
@@ -408,6 +409,34 @@ registerTool(
     groupByOpportunity: z.boolean().optional().describe("Group the results by opportunity class")
   },
   keywordsFluent.keywordCandidatesHandler
+);
+
+registerTool(
+  "keyword_report",
+  "Aggregated keyword candidates for a site from every source (Search Console demand + business-profile services/locations), with provenance. Corroborated terms - offered by the business AND already shown by Google - rank highest.",
+  {
+    siteUrl: z.string().describe("The site property URL"),
+    days: z.number().optional().describe("Search Console window in days (default: 90)"),
+    minImpressions: z.number().optional().describe("Minimum impressions for measured terms (default: 5)"),
+    limit: z.number().optional().describe("Max keywords (default: 150)"),
+    persist: z.boolean().optional().describe("Store candidates so decisions can be recorded (default: true)")
+  },
+  reportFluent.keywordReportHandler
+);
+
+registerTool(
+  "keyword_decide",
+  "Record which candidates we are shooting for. Targeting a keyword adds it to the operational worklist and to tracked_queries, so the nightly SERP sync starts collecting competitor positions for it.",
+  {
+    siteUrl: z.string().describe("The site property URL"),
+    keywords: z.array(z.string()).describe("Keywords to decide on"),
+    decision: z.enum(["targeted", "rejected", "pending"]).describe("The decision"),
+    targetPage: z.string().optional().describe("The page that should win this keyword"),
+    targetPosition: z.number().optional().describe("Goal position (default: 5)"),
+    priority: z.number().optional().describe("1 = highest (default: 3)"),
+    notes: z.string().optional().describe("Why")
+  },
+  reportFluent.keywordDecideHandler
 );
 
 // 5. Indexing & URL Submission
