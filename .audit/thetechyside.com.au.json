@@ -1,0 +1,257 @@
+{
+  "siteUrl": "sc-domain:thetechyside.com.au",
+  "domain": "thetechyside.com.au",
+  "customer": "Subbie Support",
+  "checkedAt": "2026-08-14T04:43:12.412Z",
+  "summary": {
+    "pass": 13,
+    "warn": 4,
+    "fail": 2,
+    "manual": 8
+  },
+  "checks": [
+    {
+      "id": "robots-txt",
+      "category": "technical",
+      "priority": 1,
+      "title": "robots.txt exists and does not block crawling",
+      "status": "pass",
+      "evidence": "robots.txt present and does not block the site.",
+      "fix": ""
+    },
+    {
+      "id": "robots-sitemap",
+      "category": "technical",
+      "priority": 2,
+      "title": "robots.txt declares the sitemap",
+      "status": "pass",
+      "evidence": "Sitemap directive present in robots.txt.",
+      "fix": ""
+    },
+    {
+      "id": "sitemap",
+      "category": "technical",
+      "priority": 1,
+      "title": "XML sitemap published",
+      "status": "pass",
+      "evidence": "https://thetechyside.com.au/sitemap.xml returns 111 URLs.",
+      "fix": ""
+    },
+    {
+      "id": "https-redirect",
+      "category": "technical",
+      "priority": 1,
+      "title": "HTTP redirects to HTTPS",
+      "status": "pass",
+      "evidence": "http://thetechyside.com.au resolved to https://www.thetechyside.com.au/",
+      "fix": ""
+    },
+    {
+      "id": "canonical-host",
+      "category": "technical",
+      "priority": 2,
+      "title": "One canonical host (www vs apex)",
+      "status": "warn",
+      "evidence": "https://www.thetechyside.com.au resolved to host \"www.thetechyside.com.au\".",
+      "fix": "Both hosts serve content. 301 one to the other so ranking signals are not split."
+    },
+    {
+      "id": "meta-robots",
+      "category": "technical",
+      "priority": 1,
+      "title": "Homepage is indexable (no noindex)",
+      "status": "pass",
+      "evidence": "No restrictive meta robots tag.",
+      "fix": ""
+    },
+    {
+      "id": "title-tag",
+      "category": "on-page",
+      "priority": 1,
+      "title": "Homepage title present and within length",
+      "status": "pass",
+      "evidence": "\"The Techy Side — Empowering businesses to succeed\" (49 chars)",
+      "fix": ""
+    },
+    {
+      "id": "meta-description",
+      "category": "on-page",
+      "priority": 2,
+      "title": "Homepage meta description present and within length",
+      "status": "pass",
+      "evidence": "75 chars: \"Practical technology, systems and reporting help for Australian businesses....\"",
+      "fix": ""
+    },
+    {
+      "id": "h1",
+      "category": "on-page",
+      "priority": 2,
+      "title": "Exactly one descriptive H1",
+      "status": "pass",
+      "evidence": "1 H1 tags: [\"Through betterreporting\"]",
+      "fix": ""
+    },
+    {
+      "id": "canonical-tag",
+      "category": "technical",
+      "priority": 2,
+      "title": "Self-referencing canonical tag",
+      "status": "pass",
+      "evidence": "canonical = https://www.thetechyside.com.au/",
+      "fix": ""
+    },
+    {
+      "id": "viewport",
+      "category": "technical",
+      "priority": 2,
+      "title": "Mobile viewport declared",
+      "status": "pass",
+      "evidence": "viewport = \"width=device-width, initial-scale=1\"",
+      "fix": ""
+    },
+    {
+      "id": "html-lang",
+      "category": "technical",
+      "priority": 3,
+      "title": "HTML lang attribute set",
+      "status": "pass",
+      "evidence": "lang = \"en\"",
+      "fix": ""
+    },
+    {
+      "id": "open-graph",
+      "category": "on-page",
+      "priority": 3,
+      "title": "Open Graph tags for link previews",
+      "status": "pass",
+      "evidence": "og:title present.",
+      "fix": ""
+    },
+    {
+      "id": "schema-org",
+      "category": "on-page",
+      "priority": 2,
+      "title": "Organization structured data",
+      "status": "pass",
+      "evidence": "JSON-LD types: Organization, WebSite",
+      "fix": ""
+    },
+    {
+      "id": "image-alt",
+      "category": "on-page",
+      "priority": 3,
+      "title": "Images have alt text",
+      "status": "warn",
+      "evidence": "17 of 17 homepage images have no alt text.",
+      "fix": "Add descriptive alt text to meaningful images."
+    },
+    {
+      "id": "index-coverage",
+      "category": "technical",
+      "priority": 1,
+      "title": "Pages are actually indexed",
+      "status": "warn",
+      "evidence": "77 of 111 known URLs indexed (69%). Discovered-not-indexed: 8. Crawled-not-indexed: 17.",
+      "fix": "Work the unindexed pages: \"Discovered\" usually means weak internal linking or crawl priority; \"Crawled – currently not indexed\" is a content-quality verdict and at scale means a site-quality problem."
+    },
+    {
+      "id": "rank-targets",
+      "category": "measurement",
+      "priority": 2,
+      "title": "Keyword targets chosen and tracked",
+      "status": "fail",
+      "evidence": "0 tracked queries on the site profile.",
+      "fix": "Run the keyword research process and record targets."
+    },
+    {
+      "id": "business-profile-reviewed",
+      "category": "measurement",
+      "priority": 1,
+      "title": "Business profile written and confirmed",
+      "status": "fail",
+      "evidence": "No confirmed business profile — keyword generation cannot run without it.",
+      "fix": "Gather evidence, draft the profile, confirm it with the client."
+    },
+    {
+      "id": "primary-location",
+      "category": "measurement",
+      "priority": 2,
+      "title": "Primary location set (localises all SERP checks)",
+      "status": "warn",
+      "evidence": "Not set.",
+      "fix": "Set primaryLocation, or record that this site has no geographic market. Unset means SERP checks are not localised and fail silently."
+    },
+    {
+      "id": "gbp-claimed",
+      "category": "off-page",
+      "priority": 1,
+      "title": "Google Business Profile claimed and complete",
+      "status": "manual",
+      "evidence": "Cannot be verified automatically.",
+      "fix": "Categories, service areas, hours, phone, website link, 10+ photos, services list."
+    },
+    {
+      "id": "gbp-reviews",
+      "category": "off-page",
+      "priority": 2,
+      "title": "Review generation process running",
+      "status": "manual",
+      "evidence": "Cannot be verified automatically.",
+      "fix": "Reviews are a local ranking factor and a conversion factor. Set up a repeatable ask (SMS/email after job)."
+    },
+    {
+      "id": "bing-places",
+      "category": "off-page",
+      "priority": 3,
+      "title": "Bing Places listing claimed",
+      "status": "manual",
+      "evidence": "Cannot be verified automatically.",
+      "fix": "Free, quick, and feeds other surfaces."
+    },
+    {
+      "id": "nap-consistency",
+      "category": "off-page",
+      "priority": 2,
+      "title": "NAP consistent across web",
+      "status": "manual",
+      "evidence": "Cannot be verified automatically.",
+      "fix": "Name/address/phone must match exactly on site, GBP and every citation. Inconsistency dilutes local ranking."
+    },
+    {
+      "id": "citations",
+      "category": "off-page",
+      "priority": 2,
+      "title": "Core directory citations built",
+      "status": "manual",
+      "evidence": "Cannot be verified automatically.",
+      "fix": "AU set: True Local, Yellow Pages, Hotfrog, StartLocal, Localsearch, plus industry-specific directories."
+    },
+    {
+      "id": "social-profiles",
+      "category": "off-page",
+      "priority": 3,
+      "title": "Social profiles claimed and linked",
+      "status": "manual",
+      "evidence": "Cannot be verified automatically.",
+      "fix": "Claim the handles, link them from the site, and reference the site from them."
+    },
+    {
+      "id": "backlink-baseline",
+      "category": "off-page",
+      "priority": 2,
+      "title": "Backlink baseline measured",
+      "status": "manual",
+      "evidence": "Cannot be verified automatically.",
+      "fix": "Needs a paid API (Ahrefs/Moz/DataForSEO) — we currently have no off-page data at all."
+    },
+    {
+      "id": "backlink-outreach",
+      "category": "off-page",
+      "priority": 3,
+      "title": "Link acquisition plan",
+      "status": "manual",
+      "evidence": "Cannot be verified automatically.",
+      "fix": "Suppliers, industry bodies, local sponsorships, existing client sites. Start from competitors' referring domains."
+    }
+  ]
+}

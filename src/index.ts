@@ -78,6 +78,7 @@ import * as keywordsFluent from "./tools/fluent/keywords.js";
 import * as businessFluent from "./tools/fluent/business.js";
 import * as reportFluent from "./tools/fluent/report.js";
 import * as auditFluent from "./tools/fluent/audit.js";
+import * as backfillFluent from "./tools/fluent/backfill.js";
 import { executeLegacyFallback, legacyFallbackMap, shouldUseLegacyFallback } from "./legacy/fallback-router.js";
 import { CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 
@@ -445,6 +446,18 @@ registerTool(
   "SEO onboarding audit for a site: technical foundations, on-page basics, indexing coverage, measurement setup, plus the off-page items that must be done by hand. Run this BEFORE chasing keywords - an unindexed page cannot rank however good its content is.",
   { siteUrl: z.string().describe("The site property URL") },
   auditFluent.seoOnboardingHandler
+);
+
+registerTool(
+  "rank_backfill",
+  "Recover a property's full available Search Console history into the local archive. The nightly sync only pulls a short rolling window, so anything before collection started was never archived - and Google's window slides, so it expires. Chunked by month, resumable, idempotent.",
+  {
+    siteUrl: z.string().describe("The site property URL"),
+    chunkDays: z.number().optional().describe("Days per request window (default: 30)"),
+    force: z.boolean().optional().describe("Re-fetch chunks that already look complete"),
+    maxDays: z.number().optional().describe("Only go back this many days")
+  },
+  backfillFluent.rankBackfillHandler
 );
 
 // 5. Indexing & URL Submission
