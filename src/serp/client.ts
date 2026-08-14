@@ -60,9 +60,16 @@ export class SerperError extends Error {
 function getApiKey(): string {
     const key = process.env.SERPER_API_KEY;
     if (!key) {
+        // Names the likeliest cause rather than only the symptom: the key lives in
+            // sops, and an interactive session only receives it after /sync. Deleting an
+            // inline copy from a client config is correct, but without /sync the value is
+            // simply absent and the failure reads like the deletion broke something.
         throw new SerperError(
-            'SERPER_API_KEY is not set. Get a key at https://serper.dev and set SERPER_API_KEY ' +
-            'in your MCP client env block (or .env) to enable competitor/SERP tools.'
+            'SERPER_API_KEY is not set, so competitor/SERP tools are unavailable. ' +
+            'If the key is stored in sops, run /sync in this session to load it into the ' +
+            'environment (an interactive session does not get sops values automatically; ' +
+            'the workflow engine does, at boot). Otherwise set SERPER_API_KEY in .env, or ' +
+            'get a key at https://serper.dev.'
         );
     }
     return key;
