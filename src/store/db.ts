@@ -165,6 +165,12 @@ ALTER TABLE site_profile ADD COLUMN IF NOT EXISTS goals         TEXT;
 -- Terms that must never become targets (wrong service, wrong region, competitor
 -- brands we cannot win, job-seeker intent).
 ALTER TABLE site_profile ADD COLUMN IF NOT EXISTS exclusions    JSONB NOT NULL DEFAULT '[]'::jsonb;
+-- What a customer would CALL this kind of provider when searching
+-- ("technology consultant", "plumber", "systems integrator"). Head terms are
+-- built from this. It cannot be inferred from the services list, which is
+-- written in internal capability language ("software licence right-sizing")
+-- rather than the words anyone actually types into Google.
+ALTER TABLE site_profile ADD COLUMN IF NOT EXISTS business_terms JSONB NOT NULL DEFAULT '[]'::jsonb;
 ALTER TABLE site_profile ADD COLUMN IF NOT EXISTS profile_notes TEXT;
 ALTER TABLE site_profile ADD COLUMN IF NOT EXISTS profile_reviewed_at TIMESTAMPTZ;
 

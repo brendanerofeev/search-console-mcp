@@ -16,6 +16,7 @@ export async function businessProfileHandler(args: {
     audiences?: string[];
     goals?: string;
     exclusions?: string[];
+    businessTerms?: string[];
     profileNotes?: string;
     markReviewed?: boolean;
     maxPages?: number;
@@ -54,6 +55,7 @@ export async function businessProfileHandler(args: {
                 audiences: p.audiences,
                 goals: p.goals ?? null,
                 exclusions: p.exclusions,
+                businessTerms: p.businessTerms,
                 primaryLocation: p.primaryLocation ?? null,
                 serviceAreas: p.serviceAreas,
                 brandTerms: p.brandTerms,
@@ -81,6 +83,7 @@ export async function businessProfileHandler(args: {
                 audiences: args.audiences,
                 goals: args.goals,
                 exclusions: args.exclusions,
+                businessTerms: args.businessTerms,
                 profileNotes: args.profileNotes,
                 // Only a human review sets this; it gates the profile as usable.
                 profileReviewedAt: args.markReviewed ? new Date().toISOString() : undefined,

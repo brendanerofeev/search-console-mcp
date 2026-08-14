@@ -391,6 +391,7 @@ registerTool(
     audiences: z.array(z.string()).optional().describe("Who they sell to"),
     goals: z.string().optional().describe("Commercial goals this SEO work serves"),
     exclusions: z.array(z.string()).optional().describe("Terms that must never become targets"),
+    businessTerms: z.array(z.string()).optional().describe("What a customer calls this kind of provider when searching (e.g. 'technology consultant', 'plumber'). Head terms are generated from this."),
     profileNotes: z.string().optional().describe("Free-form notes"),
     markReviewed: z.boolean().optional().describe("Mark the profile as human-reviewed"),
     maxPages: z.number().optional().describe("Service pages to sample when gathering (default: 8)")

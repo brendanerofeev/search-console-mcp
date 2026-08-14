@@ -30,6 +30,8 @@ export interface SiteProfile {
     goals?: string;
     /** Terms that must never become targets. */
     exclusions: string[];
+    /** What a customer calls this kind of provider when searching. */
+    businessTerms: string[];
     profileNotes?: string;
     profileReviewedAt?: string;
     active: boolean;
@@ -75,6 +77,7 @@ function rowToProfile(row: Record<string, any>): SiteProfile {
         audiences: toArray(row.audiences),
         goals: row.goals ?? undefined,
         exclusions: toArray(row.exclusions),
+        businessTerms: toArray(row.business_terms),
         profileNotes: row.profile_notes ?? undefined,
         profileReviewedAt: row.profile_reviewed_at
             ? (row.profile_reviewed_at instanceof Date
@@ -128,6 +131,7 @@ export async function upsertProfile(input: SiteProfileInput): Promise<SiteProfil
         JSON.stringify(input.audiences ?? existing?.audiences ?? []),
         input.goals ?? existing?.goals ?? null,
         JSON.stringify(input.exclusions ?? existing?.exclusions ?? []),
+        JSON.stringify(input.businessTerms ?? existing?.businessTerms ?? []),
         input.profileNotes ?? existing?.profileNotes ?? null,
         input.profileReviewedAt ?? existing?.profileReviewedAt ?? null,
     ];
@@ -137,9 +141,9 @@ export async function upsertProfile(input: SiteProfileInput): Promise<SiteProfil
             site_url, customer, domain, ga4_property_id, country, language, device,
             primary_location, service_areas, brand_terms, competitors, tracked_queries,
             notes, active, description, services, audiences, goals, exclusions,
-            profile_notes, profile_reviewed_at, updated_at
+            business_terms, profile_notes, profile_reviewed_at, updated_at
          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11::jsonb,$12::jsonb,$13,$14,
-                   $15,$16::jsonb,$17::jsonb,$18,$19::jsonb,$20,$21::timestamptz, now())
+                   $15,$16::jsonb,$17::jsonb,$18,$19::jsonb,$20::jsonb,$21,$22::timestamptz, now())
          ON CONFLICT (site_url) DO UPDATE SET
             customer = EXCLUDED.customer,
             domain = EXCLUDED.domain,
@@ -159,6 +163,7 @@ export async function upsertProfile(input: SiteProfileInput): Promise<SiteProfil
             audiences = EXCLUDED.audiences,
             goals = EXCLUDED.goals,
             exclusions = EXCLUDED.exclusions,
+            business_terms = EXCLUDED.business_terms,
             profile_notes = EXCLUDED.profile_notes,
             profile_reviewed_at = EXCLUDED.profile_reviewed_at,
             updated_at = now()`,

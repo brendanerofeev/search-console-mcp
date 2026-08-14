@@ -160,11 +160,36 @@ export function generateFromProfile(profile: SiteProfile, opts: GenerateOptions 
 
     // Audience-led terms: how a strata manager searches differs from a homeowner,
     // and these are usually far less contested than the bare service terms.
-    if (opts.includeAudiences !== false) {
-        const trade = 'plumber';
+    // What a customer calls this kind of provider. Previously hardcoded to
+    // 'plumber', which was right for one client and produced nonsense everywhere
+    // else ("businesses that have outgrown spreadsheets plumber brisbane").
+    // It cannot be inferred from `services` either: those are internal capability
+    // names ("software licence right-sizing"), not words anyone types.
+    const trades = profile.businessTerms.map((t) => t.toLowerCase().trim()).filter(Boolean);
+
+    for (const trade of trades) {
+        // The head terms: what the business IS, plain and with a location.
+        add({ keyword: trade, pattern: 'business', intent: 'commercial', confidence: 70 });
+        for (const location of locations) {
+            add({
+                keyword: `${trade} ${location}`,
+                pattern: 'business+location',
+                location, intent: 'commercial',
+                confidence: location === shortLocation(profile.primaryLocation ?? '') ? 95 : 80,
+            });
+        }
+        add({ keyword: `${trade} near me`, pattern: 'business+nearme', intent: 'commercial', confidence: 60 });
+    }
+
+    // Audience-qualified terms only make sense once we know the noun.
+    if (opts.includeAudiences !== false && trades.length) {
+        const trade = trades[0];
         for (const audience of profile.audiences) {
             for (const a of audienceVariants(audience)) {
-                if (!a || a === 'homeowners') continue;
+                // Audiences phrased as sentences ("businesses that have outgrown
+                // spreadsheets") describe a situation, not a search. Only short,
+                // noun-like audiences make usable qualifiers.
+                if (!a || a === 'homeowners' || a.split(' ').length > 2) continue;
                 add({ keyword: `${a} ${trade}`, pattern: 'audience+trade', audience, intent: 'commercial', confidence: 70 });
                 const city = locations[0];
                 if (city) {
