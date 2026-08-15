@@ -705,6 +705,25 @@ async function main() {
     if (!process.env.MCP_AUTH_TOKEN) {
       console.error("WARNING: serving HTTP without MCP_AUTH_TOKEN — endpoint is unauthenticated.");
     }
+    // Apply the schema before serving. ensureSchema() is lazy - it fires on the
+    // first query() - so a long-running server that boots and serves HTTP
+    // without touching the store never migrates. A deploy carrying a new column
+    // therefore appears to succeed while production keeps the old schema, and
+    // the first thing to notice is a write failing much later. Seen for real:
+    // site_profile.business_terms shipped, the image was live, and the column
+    // was still absent until something happened to run a query.
+    // Non-fatal: the store is optional for some deployments, and refusing to
+    // serve because of it would turn a degraded feature into an outage.
+    try {
+      const { ensureSchema } = await import("./store/db.js");
+      await ensureSchema();
+    } catch (error) {
+      console.error(
+        `WARNING: could not apply the database schema at startup: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
     await startSseServer(server, port);
   } else {
     const transport = new StdioServerTransport();
