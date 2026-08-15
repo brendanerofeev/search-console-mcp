@@ -45,6 +45,14 @@ export interface SerpResponse {
     relatedSearches: string[];
     answerBox?: { title?: string; answer?: string; snippet?: string; link?: string };
     knowledgeGraph?: { title?: string; type?: string; website?: string };
+    /**
+     * Local/map pack. Sits above organic and takes most of the clicks, so for a
+     * local services business it changes which lever matters: Business Profile
+     * first, organic second. Previously dropped on the floor.
+     */
+    places: { title: string; address?: string; rating?: number; ratingCount?: number; website?: string }[];
+    /** AI Overview present — a share of these searches resolve without any click. */
+    aiOverview: boolean;
     /** Serper credits consumed by this call. */
     credits?: number;
     searchParameters: Record<string, unknown>;
@@ -141,6 +149,14 @@ export async function fetchSerp(options: SerpOptions): Promise<SerpResponse> {
             .filter(Boolean),
         answerBox: data.answerBox,
         knowledgeGraph: data.knowledgeGraph,
+        places: (data.places ?? []).map((p: any) => ({
+            title: p.title,
+            address: p.address,
+            rating: p.rating,
+            ratingCount: p.ratingCount,
+            website: p.website,
+        })),
+        aiOverview: Boolean(data.aiOverview ?? false),
         credits: data.credits,
         searchParameters: data.searchParameters ?? body,
     };

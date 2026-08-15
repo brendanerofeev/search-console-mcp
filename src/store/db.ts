@@ -148,6 +148,36 @@ CREATE TABLE IF NOT EXISTS quota_usage (
   PRIMARY KEY (site_url, day)
 );
 
+-- Metered spend against PREPAID third-party APIs (DataForSEO). Prepaid balance
+-- disappears silently: a loop that forgets to check cost drains the account with
+-- nothing to show for it, and the only signal is a later call failing. Recording
+-- per-endpoint spend makes the burn visible before that happens.
+CREATE TABLE IF NOT EXISTS api_spend (
+  provider TEXT NOT NULL,
+  endpoint TEXT NOT NULL,
+  site_url TEXT NOT NULL DEFAULT '',
+  day      DATE NOT NULL,
+  calls    INTEGER NOT NULL DEFAULT 0,
+  cost_usd NUMERIC(12,6) NOT NULL DEFAULT 0,
+  PRIMARY KEY (provider, endpoint, site_url, day)
+);
+
+-- Off-page profile over time. Snapshotted rather than fetched on demand because
+-- link building is slow and the only way to know it is working is to compare
+-- against where you were - a single reading says nothing.
+CREATE TABLE IF NOT EXISTS backlink_daily (
+  site_url          TEXT NOT NULL,
+  target            TEXT NOT NULL,
+  date              DATE NOT NULL,
+  rank              INTEGER,
+  backlinks         INTEGER,
+  referring_domains INTEGER,
+  referring_main_domains INTEGER,
+  broken_backlinks  INTEGER,
+  is_competitor     BOOLEAN NOT NULL DEFAULT FALSE,
+  PRIMARY KEY (site_url, target, date)
+);
+
 -- Free-form bookkeeping (last sync timestamps, backfill cursors).
 CREATE TABLE IF NOT EXISTS sync_state (
   key   TEXT PRIMARY KEY,
