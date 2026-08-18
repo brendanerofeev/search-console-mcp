@@ -81,19 +81,36 @@ export async function discoverProfiles(): Promise<DiscoverResult[]> {
         const domain = toDomain(siteUrl);
         const ga4 = ga4ByHost.get(domain);
         const before = existing.get(siteUrl);
-        const profile = await upsertProfile({
-            siteUrl,
-            domain,
-            customer: before?.customer ?? ga4?.account,
-            ga4PropertyId: ga4?.id,
-        });
+
+        // Discovery is create-only. It runs whenever a property is verified, and
+        // it has no information a human-authored profile would want: everything
+        // it knows (domain, customer, GA4 id) is either already there or derivable.
+        // On 2026-08-15 a run of this loop emptied a client's confirmed profile,
+        // and while the direct cause was upstream (see upsertProfile), the reason
+        // it could reach that row at all is that provisioning wrote to rows it had
+        // no business touching. Not writing is the guarantee; the SQL merge is the
+        // backstop.
+        let profile = before;
+        if (!before) {
+            profile = await upsertProfile({
+                siteUrl,
+                domain,
+                customer: ga4?.account,
+                ga4PropertyId: ga4?.id,
+            });
+        } else if (ga4?.id && !before.ga4PropertyId) {
+            // The one exception: linking a newly-available GA4 property to a site
+            // that has none. Only that column is supplied, so nothing else moves.
+            profile = await upsertProfile({ siteUrl, ga4PropertyId: ga4.id });
+        }
+
         results.push({
             siteUrl,
             domain,
-            ga4PropertyId: profile.ga4PropertyId,
-            customer: profile.customer,
+            ga4PropertyId: profile!.ga4PropertyId,
+            customer: profile!.customer,
             created: !before,
-            hasLocation: !!profile.primaryLocation,
+            hasLocation: !!profile!.primaryLocation,
         });
     }
     return results;

@@ -104,36 +104,58 @@ export async function listProfiles(includeInactive = false): Promise<SiteProfile
     return rows.map(rowToProfile);
 }
 
+/** `undefined` means "leave alone"; an empty array is an explicit clear. */
+function provided(value: string[] | undefined): string | null {
+    return value === undefined ? null : JSON.stringify(value);
+}
+
 /**
  * Create or update a profile. Only provided fields are changed, so this is safe
  * to call repeatedly (e.g. from discovery) without clobbering manual edits.
+ *
+ * Preservation is done by Postgres (`COALESCE(EXCLUDED.x, site_profile.x)`) and
+ * NOT by reading the row into JS and merging. That distinction is load-bearing.
+ *
+ * On 2026-08-15 a discovery run emptied a client's confirmed profile - services,
+ * audiences, goals, primary location, tracked queries - on a row that was present
+ * throughout (`created_at` survived, so it was updated in place). The merge logic
+ * was correct. What failed was upstream of it: the read came back empty, every
+ * `?? existing?.x` fell through to its default, and the UPDATE faithfully wrote
+ * those defaults over real data.
+ *
+ * A read that silently returns nothing is indistinguishable from a genuinely
+ * empty row once the merge happens in application code. Doing it in SQL removes
+ * the failure mode: an unsupplied value keeps whatever is stored, because the
+ * database supplies it and never had to be read.
+ *
+ * Omitting a key (or passing undefined) keeps the stored value; passing `[]` or
+ * `''` clears it - the same semantics as before, since `??` already treated null
+ * and undefined as "keep".
  */
 export async function upsertProfile(input: SiteProfileInput): Promise<SiteProfile> {
-    const existing = await getProfile(input.siteUrl);
-
-    const merged = [
+    const values = [
         input.siteUrl,
-        input.customer ?? existing?.customer ?? null,
-        input.domain ?? existing?.domain ?? toDomain(input.siteUrl),
-        input.ga4PropertyId ?? existing?.ga4PropertyId ?? null,
-        input.country ?? existing?.country ?? 'au',
-        input.language ?? existing?.language ?? 'en',
-        input.device ?? existing?.device ?? 'mobile',
-        input.primaryLocation ?? existing?.primaryLocation ?? null,
-        JSON.stringify(input.serviceAreas ?? existing?.serviceAreas ?? []),
-        JSON.stringify(input.brandTerms ?? existing?.brandTerms ?? []),
-        JSON.stringify(input.competitors ?? existing?.competitors ?? []),
-        JSON.stringify(input.trackedQueries ?? existing?.trackedQueries ?? []),
-        input.notes ?? existing?.notes ?? null,
-        input.active ?? existing?.active ?? true,
-        input.description ?? existing?.description ?? null,
-        JSON.stringify(input.services ?? existing?.services ?? []),
-        JSON.stringify(input.audiences ?? existing?.audiences ?? []),
-        input.goals ?? existing?.goals ?? null,
-        JSON.stringify(input.exclusions ?? existing?.exclusions ?? []),
-        JSON.stringify(input.businessTerms ?? existing?.businessTerms ?? []),
-        input.profileNotes ?? existing?.profileNotes ?? null,
-        input.profileReviewedAt ?? existing?.profileReviewedAt ?? null,
+        input.customer ?? null,
+        input.domain ?? toDomain(input.siteUrl),
+        input.ga4PropertyId ?? null,
+        input.country ?? null,
+        input.language ?? null,
+        input.device ?? null,
+        input.primaryLocation ?? null,
+        provided(input.serviceAreas),
+        provided(input.brandTerms),
+        provided(input.competitors),
+        provided(input.trackedQueries),
+        input.notes ?? null,
+        input.active ?? null,
+        input.description ?? null,
+        provided(input.services),
+        provided(input.audiences),
+        input.goals ?? null,
+        provided(input.exclusions),
+        provided(input.businessTerms),
+        input.profileNotes ?? null,
+        input.profileReviewedAt ?? null,
     ];
 
     await query(
@@ -142,32 +164,40 @@ export async function upsertProfile(input: SiteProfileInput): Promise<SiteProfil
             primary_location, service_areas, brand_terms, competitors, tracked_queries,
             notes, active, description, services, audiences, goals, exclusions,
             business_terms, profile_notes, profile_reviewed_at, updated_at
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11::jsonb,$12::jsonb,$13,$14,
-                   $15,$16::jsonb,$17::jsonb,$18,$19::jsonb,$20::jsonb,$21,$22::timestamptz, now())
+         ) VALUES (
+            $1, $2, $3, $4,
+            COALESCE($5, 'au'), COALESCE($6, 'en'), COALESCE($7, 'mobile'), $8,
+            COALESCE($9::jsonb,  '[]'::jsonb), COALESCE($10::jsonb, '[]'::jsonb),
+            COALESCE($11::jsonb, '[]'::jsonb), COALESCE($12::jsonb, '[]'::jsonb),
+            $13, COALESCE($14, TRUE), $15,
+            COALESCE($16::jsonb, '[]'::jsonb), COALESCE($17::jsonb, '[]'::jsonb), $18,
+            COALESCE($19::jsonb, '[]'::jsonb), COALESCE($20::jsonb, '[]'::jsonb),
+            $21, $22::timestamptz, now()
+         )
          ON CONFLICT (site_url) DO UPDATE SET
-            customer = EXCLUDED.customer,
-            domain = EXCLUDED.domain,
-            ga4_property_id = EXCLUDED.ga4_property_id,
-            country = EXCLUDED.country,
-            language = EXCLUDED.language,
-            device = EXCLUDED.device,
-            primary_location = EXCLUDED.primary_location,
-            service_areas = EXCLUDED.service_areas,
-            brand_terms = EXCLUDED.brand_terms,
-            competitors = EXCLUDED.competitors,
-            tracked_queries = EXCLUDED.tracked_queries,
-            notes = EXCLUDED.notes,
-            active = EXCLUDED.active,
-            description = EXCLUDED.description,
-            services = EXCLUDED.services,
-            audiences = EXCLUDED.audiences,
-            goals = EXCLUDED.goals,
-            exclusions = EXCLUDED.exclusions,
-            business_terms = EXCLUDED.business_terms,
-            profile_notes = EXCLUDED.profile_notes,
-            profile_reviewed_at = EXCLUDED.profile_reviewed_at,
-            updated_at = now()`,
-        merged
+            customer            = COALESCE(EXCLUDED.customer,            site_profile.customer),
+            domain              = COALESCE(EXCLUDED.domain,              site_profile.domain),
+            ga4_property_id     = COALESCE(EXCLUDED.ga4_property_id,     site_profile.ga4_property_id),
+            country             = COALESCE($5,                           site_profile.country),
+            language            = COALESCE($6,                           site_profile.language),
+            device              = COALESCE($7,                           site_profile.device),
+            primary_location    = COALESCE(EXCLUDED.primary_location,    site_profile.primary_location),
+            service_areas       = COALESCE($9::jsonb,                    site_profile.service_areas),
+            brand_terms         = COALESCE($10::jsonb,                   site_profile.brand_terms),
+            competitors         = COALESCE($11::jsonb,                   site_profile.competitors),
+            tracked_queries     = COALESCE($12::jsonb,                   site_profile.tracked_queries),
+            notes               = COALESCE(EXCLUDED.notes,               site_profile.notes),
+            active              = COALESCE($14,                          site_profile.active),
+            description         = COALESCE(EXCLUDED.description,         site_profile.description),
+            services            = COALESCE($16::jsonb,                   site_profile.services),
+            audiences           = COALESCE($17::jsonb,                   site_profile.audiences),
+            goals               = COALESCE(EXCLUDED.goals,               site_profile.goals),
+            exclusions          = COALESCE($19::jsonb,                   site_profile.exclusions),
+            business_terms      = COALESCE($20::jsonb,                   site_profile.business_terms),
+            profile_notes       = COALESCE(EXCLUDED.profile_notes,       site_profile.profile_notes),
+            profile_reviewed_at = COALESCE(EXCLUDED.profile_reviewed_at, site_profile.profile_reviewed_at),
+            updated_at          = now()`,
+        values
     );
 
     return (await getProfile(input.siteUrl))!;
