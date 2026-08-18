@@ -254,16 +254,25 @@ export async function login() {
 
     const authorizeIndexing = await ask('\nWould you like to also authorize Google Indexing API write scope? (y/N): ');
     const useIndexing = authorizeIndexing.toLowerCase().startsWith('y');
-    const scopes = useIndexing
-        ? [
-            'https://www.googleapis.com/auth/webmasters.readonly',
-            'https://www.googleapis.com/auth/indexing',
-            'https://www.googleapis.com/auth/userinfo.email'
-          ]
-        : [
-            'https://www.googleapis.com/auth/webmasters.readonly',
-            'https://www.googleapis.com/auth/userinfo.email'
-          ];
+
+    console.log(`\n${colors.bold}\ud83d\udca1 Search Console write access:${colors.reset}`);
+    console.log(`   Submitting or deleting sitemaps, and adding or removing properties,`);
+    console.log(`   require the read-write ${colors.cyan}webmasters${colors.reset} scope. Without it those tools are`);
+    console.log(`   still listed but fail with "insufficient authentication scopes".`);
+    console.log(`   Decline to keep read-only access, which is enough for all reporting.`);
+
+    const authorizeWrites = await ask('\nAuthorize Search Console write scope (sitemaps, properties)? (y/N): ');
+    const useWrites = authorizeWrites.toLowerCase().startsWith('y');
+
+    const scopes = [
+        // Read-only stays listed either way: the read-write scope supersedes it,
+        // but keeping it means a token minted before this prompt existed still
+        // satisfies every read path.
+        'https://www.googleapis.com/auth/webmasters.readonly',
+        ...(useWrites ? ['https://www.googleapis.com/auth/webmasters'] : []),
+        ...(useIndexing ? ['https://www.googleapis.com/auth/indexing'] : []),
+        'https://www.googleapis.com/auth/userinfo.email'
+    ];
 
     try {
         const tokens = await startLocalFlow(clientId, clientSecret, scopes);

@@ -1,5 +1,5 @@
 import { createServer, IncomingMessage, ServerResponse } from "http";
-import { randomUUID, timingSafeEqual } from "crypto";
+import { timingSafeEqual } from "crypto";
 import { readFile } from "fs/promises";
 import { join, extname, normalize } from "path";
 import { fileURLToPath } from "url";
@@ -112,14 +112,32 @@ export function startSseServer(
   // /messages keep working exactly as before for the dashboard and any
   // existing client.
   //
-  // One streamable session per client, each with its OWN McpServer.
+  // /mcp is STATELESS: a fresh McpServer and transport per request, nothing
+  // retained between them.
   //
-  // The SDK leaves no shortcut here: a stateless transport refuses to be reused
-  // across requests, a stateful one refuses a second initialize, and a single
-  // McpServer binds to a single transport. So a shared instance would cap the
-  // process at one concurrent client. createServerInstance() is called per
-  // session instead — registration is pure, so this is cheap.
-  const streamableSessions = new Map<string, StreamableHTTPServerTransport>();
+  // It was previously session-based, minting a session id and holding the
+  // transport in a Map. That was never about state — tool registration is pure,
+  // so two clients get identical behaviour from separate instances. It was a
+  // workaround for an SDK constraint: one McpServer binds to one transport, and
+  // a shared instance threw "Already connected to a transport" on the second
+  // client, unhandled, killing the process. Per-connection instances fixed the
+  // crash; the session id came along for the ride.
+  //
+  // The Map cost more than it bought. It lived in process memory, so every
+  // restart invalidated every client's session id and they failed with "Server
+  // not initialized" until they reconnected — which made routine deploys
+  // disruptive and had to be scheduled around live agents. It also ruled out a
+  // second replica or a rolling deploy without sticky sessions, and had no TTL,
+  // so a client that vanished without closing leaked an entry for the life of
+  // the process.
+  //
+  // Nothing here needs a session. There is no sampling, no server-initiated
+  // notification, and the `input_required` elicitation is a payload returned
+  // inside a tool result rather than an elicitation/create request to the
+  // client — so no server→client stream is ever opened. That is also why GET
+  // and DELETE on /mcp are 405 rather than implemented.
+  //
+  // /sse and /messages genuinely are session-based and are unchanged.
 
   const httpServer = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
@@ -218,26 +236,18 @@ export function startSseServer(
         return;
       }
       try {
-        const sessionId = req.headers["mcp-session-id"] as string | undefined;
-        let transport = sessionId ? streamableSessions.get(sessionId) : undefined;
-
-        if (!transport) {
-          // No session yet (or an expired one): this must be an initialize, and
-          // the SDK will reject it with a clear JSON-RPC error if it is not.
-          transport = new StreamableHTTPServerTransport({
-            sessionIdGenerator: () => randomUUID(),
-            enableJsonResponse: true,
-            onsessioninitialized: (id) => {
-              streamableSessions.set(id, transport!);
-              logger.info(`[MCP HTTP] Session opened: ${id} (${streamableSessions.size} active)`);
-            },
-          });
-          transport.onclose = () => {
-            if (transport!.sessionId) streamableSessions.delete(transport!.sessionId);
-          };
-          await createServerInstance().connect(transport);
-        }
-
+        // sessionIdGenerator: undefined puts the SDK in stateless mode, where a
+        // transport must not be reused across requests. Both the server and the
+        // transport are therefore built here and discarded when the response
+        // ends. Registration is pure, so this is cheap — and it means any
+        // request stands alone: no prior initialize, no session id, nothing
+        // that a restart or a second replica could invalidate.
+        const transport = new StreamableHTTPServerTransport({
+          sessionIdGenerator: undefined,
+          enableJsonResponse: true,
+        });
+        res.on("close", () => void transport.close());
+        await createServerInstance().connect(transport);
         await transport.handleRequest(req, res);
       } catch (e) {
         const msg = (e as Error).message;
@@ -303,9 +313,8 @@ export function startSseServer(
       logger.info(`🚀 Search Console MCP Server listening on http://localhost:${port} (/sse, /mcp)`);
       resolve({
         close: () => {
-          // Detach every live session so a restart reconnects cleanly.
-          for (const t of streamableSessions.values()) void t.close();
-          streamableSessions.clear();
+          // Nothing to detach for /mcp — each request owns its transport and
+          // releases it on response close.
           httpServer.close();
         },
       });

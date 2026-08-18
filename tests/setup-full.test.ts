@@ -212,7 +212,8 @@ describe('Setup Full', () => {
 
         it('should handle Google Login flow', async () => {
             process.argv = ['node', 'setup.ts'];
-            mockAnswers = ['1', '1', 'n', '1', 'my-google', 'n'];
+            // answers: engine, auth method, indexing? n, writes? n, account, alias, more?
+            mockAnswers = ['1', '1', 'n', 'n', '1', 'my-google', 'n'];
 
             vi.mocked(googleClient.startLocalFlow).mockResolvedValue({ access_token: 'token' });
             vi.mocked(googleClient.getUserEmail).mockResolvedValue('user@test.com');
@@ -227,7 +228,45 @@ describe('Setup Full', () => {
                 engine: 'google',
                 alias: 'my-google'
             }));
-            // Verify default scopes were used
+            // Declining both prompts must stay read-only. Write scope is opt-in:
+            // granting it silently would widen what the credential can do.
+            expect(googleClient.startLocalFlow).toHaveBeenCalledWith(
+                expect.any(String),
+                expect.any(String),
+                expect.not.arrayContaining(['https://www.googleapis.com/auth/indexing'])
+            );
+            expect(googleClient.startLocalFlow).toHaveBeenCalledWith(
+                expect.any(String),
+                expect.any(String),
+                expect.not.arrayContaining(['https://www.googleapis.com/auth/webmasters'])
+            );
+            expect(googleClient.startLocalFlow).toHaveBeenCalledWith(
+                expect.any(String),
+                expect.any(String),
+                expect.arrayContaining(['https://www.googleapis.com/auth/webmasters.readonly'])
+            );
+        });
+
+        it('should request the Search Console write scope when accepted', async () => {
+            process.argv = ['node', 'setup.ts'];
+            mockAnswers = ['1', '1', 'n', 'y', '1', 'my-google-writes', 'n'];
+
+            vi.mocked(googleClient.startLocalFlow).mockResolvedValue({ access_token: 'token' });
+            vi.mocked(googleClient.getUserEmail).mockResolvedValue('user@test.com');
+
+            mockGClient.sites.list.mockResolvedValue({
+                data: { siteEntry: [{ siteUrl: 'https://site.com' }] }
+            });
+
+            await setupModule.main();
+
+            // Without this scope sitemaps_submit, sitemaps_delete and
+            // sites_manage are listed but fail every call.
+            expect(googleClient.startLocalFlow).toHaveBeenCalledWith(
+                expect.any(String),
+                expect.any(String),
+                expect.arrayContaining(['https://www.googleapis.com/auth/webmasters'])
+            );
             expect(googleClient.startLocalFlow).toHaveBeenCalledWith(
                 expect.any(String),
                 expect.any(String),
@@ -237,7 +276,7 @@ describe('Setup Full', () => {
 
         it('should handle Google Login flow with Indexing scope', async () => {
             process.argv = ['node', 'setup.ts'];
-            mockAnswers = ['1', '1', 'y', '1', 'my-google-indexing', 'n'];
+            mockAnswers = ['1', '1', 'y', 'n', '1', 'my-google-indexing', 'n'];
 
             vi.mocked(googleClient.startLocalFlow).mockResolvedValue({ access_token: 'token' });
             vi.mocked(googleClient.getUserEmail).mockResolvedValue('user@test.com');

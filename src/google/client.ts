@@ -5,7 +5,25 @@ import { resolveAccount } from '../common/auth/resolver.js';
 import { logger } from '../utils/logger.js';
 const { machineIdSync } = nodeMachineId;
 
+/**
+ * Search Console scopes.
+ *
+ * `webmasters` is read-write and supersedes `webmasters.readonly`, which stays
+ * listed so tokens minted against the old scope keep working for reads.
+ *
+ * The write scope is required by `sitemaps_submit`, `sitemaps_delete` and
+ * `sites_manage`. Without it those three tools are advertised in the tool
+ * surface and fail every call with "Request had insufficient authentication
+ * scopes" — and `diagnostics` still reports ok, because it only exercises the
+ * read path. Shipping a tool that cannot work is worse than not shipping it.
+ *
+ * This widens what the credential can do, so it is a deliberate trade rather
+ * than a default. Service accounts pick it up on the next token with no consent
+ * step; existing browser-flow tokens do not gain it and must re-authorise via
+ * `setup`, which asks before requesting it.
+ */
 const SCOPES = [
+  'https://www.googleapis.com/auth/webmasters',
   'https://www.googleapis.com/auth/webmasters.readonly',
   'https://www.googleapis.com/auth/userinfo.email'
 ];

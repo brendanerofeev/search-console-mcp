@@ -135,16 +135,29 @@ describe("Remote Stateless HTTP/SSE Transport Adaptor (MCP 2026-07-28 Spec)", ()
     instance.close();
   });
 
-  // Regression: a shared McpServer capped the process at ONE client and threw
-  // "Already connected to a transport" on the second, which — being unhandled
-  // inside the http callback — took the whole process down. startSseServer now
-  // takes a FACTORY and mints a server per session, so this must stay green.
-  it("serves several concurrent /mcp sessions, each with its own server", async () => {
+  // Two regressions in one test.
+  //
+  // 1. A shared McpServer capped the process at ONE client and threw "Already
+  //    connected to a transport" on the second, which — unhandled inside the
+  //    http callback — took the whole process down. startSseServer takes a
+  //    FACTORY and mints a server per request, so this must stay green.
+  // 2. /mcp is stateless. It used to mint a session id and hold the transport
+  //    in a process-local Map, which meant every restart invalidated every
+  //    client ("Server not initialized") and a second replica could not serve
+  //    an existing client. A request must now stand alone.
+  it("serves concurrent /mcp requests statelessly, each with its own server", async () => {
     const port = 3461;
-    const instance = await startSseServer(
-      () => new McpServer({ name: "test-mcp-server", version: "1.0.0" }),
-      port,
-    );
+    const instance = await startSseServer(() => {
+      const server = new McpServer({ name: "test-mcp-server", version: "1.0.0" });
+      // A registered tool, so tools/list exercises the real path rather than
+      // returning "Method not found" from a server with no capabilities.
+      server.registerTool(
+        "ping",
+        { description: "Test tool", inputSchema: {} },
+        async () => ({ content: [{ type: "text" as const, text: "pong" }] }),
+      );
+      return server;
+    }, port);
 
     const post = async (body: unknown, sessionId?: string) =>
       fetch(`http://localhost:${port}/mcp`, {
@@ -158,7 +171,7 @@ describe("Remote Stateless HTTP/SSE Transport Adaptor (MCP 2026-07-28 Spec)", ()
         body: JSON.stringify(body),
       });
 
-    const openSession = async (clientName: string) => {
+    const initialize = async (clientName: string) => {
       const res = await post({
         jsonrpc: "2.0",
         id: 1,
@@ -170,29 +183,27 @@ describe("Remote Stateless HTTP/SSE Transport Adaptor (MCP 2026-07-28 Spec)", ()
         },
       });
       expect(res.status).toBe(200);
-      return res.headers.get("mcp-session-id");
+      return res;
     };
 
-    const sessions = await Promise.all(
-      ["client-a", "client-b", "client-c"].map(openSession),
+    // Concurrency: three clients at once, none of them killing the others.
+    const opened = await Promise.all(
+      ["client-a", "client-b", "client-c"].map(initialize),
     );
+    expect(opened.map((r) => r.status)).toEqual([200, 200, 200]);
 
-    // Every client got a session, and no two clients share one.
-    expect(sessions.every((s) => typeof s === "string" && s.length > 0)).toBe(true);
-    expect(new Set(sessions).size).toBe(sessions.length);
+    // Stateless: no session id is handed out, so there is nothing for a restart
+    // or a second replica to invalidate.
+    expect(opened.every((r) => r.headers.get("mcp-session-id") === null)).toBe(true);
 
-    // And each session still works afterwards — i.e. opening the second and
-    // third did not tear down the first.
-    const statuses = await Promise.all(
-      sessions.map(async (sessionId) => {
-        const res = await post(
-          { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} },
-          sessionId!,
-        );
-        return res.status;
-      }),
-    );
-    expect(statuses).toEqual([200, 200, 200]);
+    // And a request with no prior initialize and no session header still works.
+    // Under the old session-based transport this returned "Server not
+    // initialized" — the exact failure every client hit after a deploy.
+    const cold = await post({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} });
+    expect(cold.status).toBe(200);
+    const body = await cold.json();
+    expect(body.error, JSON.stringify(body.error)).toBeUndefined();
+    expect(Array.isArray(body.result?.tools)).toBe(true);
 
     instance.close();
   });

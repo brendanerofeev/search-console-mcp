@@ -35,9 +35,26 @@ Search Console MCP is designed as a local-first CLI tool with the following secu
 ### 1. OAuth-Based Authentication
 
 - Uses OAuth 2.0 Device Authorization Flow
-- Requests minimal scope (`webmasters.readonly`)
-- Does not request write access to Google services
+- Defaults to read-only scope (`webmasters.readonly`)
 - Does not collect Google account passwords
+
+**Write scopes are opt-in and asked for explicitly during `setup`:**
+
+| Scope | Grants | Needed by |
+|---|---|---|
+| `webmasters` | Read-write Search Console | `sitemaps_submit`, `sitemaps_delete`, `sites_manage` |
+| `indexing` | Google Indexing API submissions | `indexing_submit` |
+
+Decline both and everything else still works — all reporting and analysis is
+read-only. Note that a credential without `webmasters` will still *list* the
+three write tools, and they will fail with "Request had insufficient
+authentication scopes"; `diagnostics` will continue to report ok, because it
+only exercises the read path.
+
+Service-account deployments request the read-write scope by default (see
+`SCOPES` in `src/google/client.ts`), since there is no consent step and the
+credential's real ceiling is the permission level granted to it in Search
+Console itself.
 
 Users authenticate directly with Google.
 
