@@ -363,7 +363,9 @@ export async function auditSite(siteUrl: string): Promise<AuditResult> {
         ['social-profiles', 'Social profiles claimed and linked',
          'Claim the handles, link them from the site, and reference the site from them.', 3],
         ['backlink-baseline', 'Backlink baseline measured',
-         'Needs a paid API (Ahrefs/Moz/DataForSEO) — we currently have no off-page data at all.', 2],
+         'Run backlink_report for the profile and link_gap for the outreach shortlist. Both need ' +
+         'competitors recorded on the site profile, because a link profile only means something ' +
+         'relative to someone.', 2],
         ['backlink-outreach', 'Link acquisition plan',
          'Suppliers, industry bodies, local sponsorships, existing client sites. Start from competitors\' referring domains.', 3],
     ];

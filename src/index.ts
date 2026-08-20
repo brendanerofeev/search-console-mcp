@@ -79,6 +79,7 @@ import * as businessFluent from "./tools/fluent/business.js";
 import * as reportFluent from "./tools/fluent/report.js";
 import * as auditFluent from "./tools/fluent/audit.js";
 import * as backfillFluent from "./tools/fluent/backfill.js";
+import * as backlinksFluent from "./tools/fluent/backlinks.js";
 import { executeLegacyFallback, legacyFallbackMap, shouldUseLegacyFallback } from "./legacy/fallback-router.js";
 import { CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 
@@ -460,6 +461,33 @@ export function createMcpServer(): McpServer {
       notes: z.string().optional().describe("Why")
     },
     reportFluent.keywordDecideHandler
+  );
+
+  registerTool(
+    "backlink_report",
+    "Off-page link profile for a site next to its recorded competitors: referring domains, backlink count, broken links and a rank score, with a verdict on whether the gap is closable by on-page work. Snapshots into the archive on every call, because one reading of a link profile answers nothing - the question is always whether it is improving. Costs ~$0.024 per target against the prepaid DataForSEO balance.",
+    {
+      siteUrl: z.string().describe("The site property URL"),
+      competitors: z
+        .array(z.string())
+        .optional()
+        .describe("Extra competitor domains to compare against, on top of those on the site profile")
+    },
+    backlinksFluent.backlinkReportHandler
+  );
+
+  registerTool(
+    "link_gap",
+    "Domains linking to your competitors but not to you - the link-building shortlist. Domains linking to several competitors are the warmest, because they demonstrably link to businesses like this one. An empty result is a finding rather than a failure: it means the niche has no shared link ecosystem, so outreach there is manual graft rather than list extraction. Competitors fall back to the site profile. Costs ~$0.024 per call against the prepaid DataForSEO balance.",
+    {
+      siteUrl: z.string().describe("The site property URL"),
+      competitors: z
+        .array(z.string())
+        .optional()
+        .describe("Competitor domains. Defaults to those recorded on the site profile"),
+      limit: z.number().optional().describe("Max gap domains to return (default: 40)")
+    },
+    backlinksFluent.linkGapHandler
   );
 
   registerTool(

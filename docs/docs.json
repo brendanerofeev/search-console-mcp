@@ -51,6 +51,7 @@
             "pages": [
               "tools/analytics",
               "tools/seo-intelligence",
+              "tools/backlinks",
               "tools/ga4",
               "tools/bing",
               "tools/compare-engines",
