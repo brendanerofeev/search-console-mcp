@@ -200,12 +200,86 @@ export async function mineCandidates(opts: MineOptions): Promise<Candidate[]> {
         .slice(0, opts.limit ?? 50);
 }
 
-/** Days of history actually held for a site — context for any rate estimate. */
-export async function archiveSpan(siteUrl: string): Promise<{ days: number; from: string | null; to: string | null }> {
-    const [row] = await query<{ lo: string | null; hi: string | null; d: string | null }>(
-        `SELECT MIN(date)::text AS lo, MAX(date)::text AS hi, (MAX(date) - MIN(date)) + 1 AS d
+/** How much history the archive actually holds — context for any rate estimate. */
+export interface ArchiveSpan {
+    /** Calendar days actually carrying rows. */
+    daysHeld: number;
+    /** First to last inclusive. This is the denominator every rate is scaled by. */
+    spanDays: number;
+    /** Days inside the span with no rows at all. */
+    gapDays: number;
+    from: string | null;
+    to: string | null;
+}
+
+/**
+ * Days of history actually held for a site.
+ *
+ * `daysHeld` and `spanDays` are reported separately because they diverge and the
+ * difference matters: an archive with 2 days of rows spread across a 5-day span
+ * was previously reported as "5 days held", which overstates coverage and — since
+ * rates are scaled by the span — quietly understates every estimate built on it.
+ *
+ * Rates stay scaled by `spanDays`, not `daysHeld`: Search Console omits days a
+ * query drew no impressions, so a gap cannot be distinguished from a genuinely
+ * quiet day. Dividing by the wider span therefore under-claims rather than
+ * inflates, and `gapDays` makes the uncertainty visible instead of hiding it.
+ */
+export async function archiveSpan(siteUrl: string): Promise<ArchiveSpan> {
+    const [row] = await query<{ lo: string | null; hi: string | null; span: string | null; held: string | null }>(
+        `SELECT MIN(date)::text AS lo, MAX(date)::text AS hi,
+                (MAX(date) - MIN(date)) + 1 AS span,
+                COUNT(DISTINCT date)        AS held
            FROM rank_daily WHERE site_url = $1`,
         [siteUrl]
     );
-    return { days: Number(row?.d ?? 0), from: row?.lo ?? null, to: row?.hi ?? null };
+    const spanDays = Number(row?.span ?? 0);
+    const daysHeld = Number(row?.held ?? 0);
+    return {
+        daysHeld,
+        spanDays,
+        gapDays: Math.max(0, spanDays - daysHeld),
+        from: row?.lo ?? null,
+        to: row?.hi ?? null,
+    };
+}
+
+/**
+ * Warnings a reader needs before trusting any rate built on this archive.
+ *
+ * The archive is younger than the windows people ask for — collection started
+ * long after the properties did — so a 90-day report can be extrapolated from a
+ * fortnight without saying so. Search Console still holds ~16 months, so the
+ * remedy is named here rather than left to be rediscovered.
+ */
+export function archiveNotes(span: ArchiveSpan, requestedDays: number): string[] {
+    const notes: string[] = [];
+
+    if (span.spanDays === 0) {
+        notes.push(
+            'The archive holds no rank history for this property, so nothing below is measured. ' +
+            'Run rank_backfill to recover the history Search Console still holds.'
+        );
+        return notes;
+    }
+
+    // Under half the requested window is the point where the multiplier starts
+    // doing more work than the data.
+    if (span.spanDays < requestedDays / 2) {
+        const factor = Math.round((30 / span.spanDays) * 10) / 10;
+        notes.push(
+            `The archive holds ${span.spanDays} days (${span.from}..${span.to}) but ${requestedDays} days were requested, ` +
+            `so every monthly rate below is extrapolated ~${factor}x from that shorter window rather than measured across ${requestedDays} days. ` +
+            'Search Console keeps roughly 16 months and that window slides: run rank_backfill to recover the missing history before quoting these figures.'
+        );
+    }
+
+    if (span.gapDays > 0) {
+        notes.push(
+            `The archive is missing ${span.gapDays} day(s) inside its ${span.spanDays}-day span (${span.daysHeld} days actually hold data). ` +
+            'Rates are scaled by the full span, so they under-claim rather than inflate — but a gap this size means the sync did not run, or those days drew no impressions.'
+        );
+    }
+
+    return notes;
 }

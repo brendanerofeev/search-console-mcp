@@ -8,7 +8,7 @@
  */
 import { query } from '../store/db.js';
 import { getProfile, type SiteProfile } from '../store/profiles.js';
-import { mineCandidates, archiveSpan, type Candidate } from './candidates.js';
+import { mineCandidates, archiveSpan, archiveNotes, type ArchiveSpan, type Candidate } from './candidates.js';
 import { generateFromProfile, type ProfileKeyword } from './profile-keywords.js';
 
 export type Source = 'gsc' | 'profile' | 'serper' | 'ads' | 'manual';
@@ -47,7 +47,7 @@ export interface KeywordReport {
     siteUrl: string;
     customer: string | null;
     profileReviewed: boolean;
-    archive: { daysHeld: number; from: string | null; to: string | null };
+    archive: ArchiveSpan;
     counts: Record<string, number>;
     keywords: AggregatedKeyword[];
     gaps: string[];
@@ -72,6 +72,8 @@ export async function buildKeywordReport(opts: ReportOptions): Promise<KeywordRe
         mineCandidates({ siteUrl: opts.siteUrl, days, minImpressions: opts.minImpressions ?? 5, limit: 500 }),
         archiveSpan(opts.siteUrl),
     ]);
+
+    notes.push(...archiveNotes(span, days));
 
     let structural: ProfileKeyword[] = [];
     if (profile.profileReviewedAt) {
@@ -200,7 +202,7 @@ export async function buildKeywordReport(opts: ReportOptions): Promise<KeywordRe
         siteUrl: opts.siteUrl,
         customer: profile.customer ?? null,
         profileReviewed: !!profile.profileReviewedAt,
-        archive: { daysHeld: span.days, from: span.from, to: span.to },
+        archive: span,
         counts,
         keywords,
         gaps,

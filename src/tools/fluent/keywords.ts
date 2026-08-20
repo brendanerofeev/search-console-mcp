@@ -1,4 +1,4 @@
-import { mineCandidates, archiveSpan, type Opportunity } from '../../seo/candidates.js';
+import { mineCandidates, archiveSpan, archiveNotes, type Opportunity } from '../../seo/candidates.js';
 
 /**
  * keyword_candidates: mine the rank archive for keyword opportunities,
@@ -14,18 +14,20 @@ export async function keywordCandidatesHandler(args: {
 }) {
     const [candidates, span] = await Promise.all([mineCandidates(args), archiveSpan(args.siteUrl)]);
 
+    const days = args.days ?? 90;
     const body: Record<string, unknown> = {
         siteUrl: args.siteUrl,
-        days: args.days ?? 90,
+        days,
         // Surfaced because every rate estimate below is extrapolated from it;
         // a short archive means confident-looking numbers built on little data.
-        archive: { daysHeld: span.days, from: span.from, to: span.to },
+        archive: span,
         found: candidates.length,
         // Stated explicitly so the number is never mistaken for search volume.
         note:
             'Impressions are demand filtered through current visibility, not total search volume. ' +
             'A term you rank ~90 for shows a fraction of its real demand, and terms you have never ' +
             'appeared for do not show at all.',
+        notes: archiveNotes(span, days),
     };
 
     if (args.groupByOpportunity) {
