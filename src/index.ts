@@ -491,6 +491,28 @@ export function createMcpServer(): McpServer {
   );
 
   registerTool(
+    "link_prospects",
+    "Domains linking to ANY of your competitors but not to you - the outreach shortlist. Use this rather than link_gap when link_gap returns nothing: link_gap requires a domain to link to EVERY competitor, which in a niche with no shared link ecosystem is a true answer to the wrong question. Ordered by how many competitors a domain links to, because a domain that has linked to three businesses like yours is a warmer prospect than a stronger domain that linked to one. Excludes domains already linking to you. Costs roughly $0.02 per competitor scanned.",
+    {
+      siteUrl: z.string().describe("The site property URL"),
+      competitors: z
+        .array(z.string())
+        .optional()
+        .describe("Competitor domains. Defaults to those recorded on the site profile"),
+      perCompetitor: z
+        .number()
+        .optional()
+        .describe("Referring domains to pull per competitor (default: 200)"),
+      limit: z.number().optional().describe("Max prospects to return (default: 60)"),
+      maxSpamScore: z
+        .number()
+        .optional()
+        .describe("Drop domains above this DataForSEO spam score (default: 30)")
+    },
+    backlinksFluent.linkProspectsHandler
+  );
+
+  registerTool(
     "seo_onboarding",
     "SEO onboarding audit for a site: technical foundations, on-page basics, indexing coverage, measurement setup, plus the off-page items that must be done by hand. Run this BEFORE chasing keywords - an unindexed page cannot rank however good its content is.",
     { siteUrl: z.string().describe("The site property URL") },

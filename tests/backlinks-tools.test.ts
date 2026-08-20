@@ -9,23 +9,26 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
  */
 
 const linkGap = vi.fn();
+const linkProspects = vi.fn();
 const backlinkReport = vi.fn();
 const getProfile = vi.fn();
 
 vi.mock('../src/dataforseo/backlinks.js', () => ({
     linkGap: (...args: unknown[]) => linkGap(...args),
+    linkProspects: (...args: unknown[]) => linkProspects(...args),
     backlinkReport: (...args: unknown[]) => backlinkReport(...args),
 }));
 vi.mock('../src/store/profiles.js', () => ({
     getProfile: (...args: unknown[]) => getProfile(...args),
 }));
 
-const { linkGapHandler, backlinkReportHandler } = await import('../src/tools/fluent/backlinks.js');
+const { linkGapHandler, backlinkReportHandler, linkProspectsHandler } = await import('../src/tools/fluent/backlinks.js');
 
 const parse = (res: { content: Array<{ text: string }> }) => JSON.parse(res.content[0].text);
 
 beforeEach(() => {
     linkGap.mockReset();
+    linkProspects.mockReset();
     backlinkReport.mockReset();
     getProfile.mockReset();
 });
@@ -125,5 +128,34 @@ describe('backlink_report', () => {
 
         expect(out.domainGap).toBe(-46);
         expect(out.verdict).toMatch(/behind/i);
+    });
+});
+
+describe('link_prospects', () => {
+    it('does not call the paid API without a comparison set', async () => {
+        getProfile.mockResolvedValue({ competitors: [] });
+        const out = parse(await linkProspectsHandler({ siteUrl: 'sc-domain:example.com' }));
+        expect(linkProspects).not.toHaveBeenCalled();
+        expect(out.note).toMatch(/nothing was charged/i);
+    });
+
+    it('falls back to profile competitors', async () => {
+        getProfile.mockResolvedValue({ competitors: ['a.com', 'b.com'] });
+        linkProspects.mockResolvedValue({ prospects: [] });
+        await linkProspectsHandler({ siteUrl: 'sc-domain:example.com' });
+        expect(linkProspects).toHaveBeenCalledWith('sc-domain:example.com', ['a.com', 'b.com'], {
+            perCompetitor: undefined, limit: undefined, maxSpamScore: undefined,
+        });
+    });
+
+    it('passes tuning options through', async () => {
+        linkProspects.mockResolvedValue({ prospects: [] });
+        await linkProspectsHandler({
+            siteUrl: 'sc-domain:example.com', competitors: ['a.com'],
+            perCompetitor: 50, limit: 10, maxSpamScore: 5,
+        });
+        expect(linkProspects).toHaveBeenCalledWith('sc-domain:example.com', ['a.com'], {
+            perCompetitor: 50, limit: 10, maxSpamScore: 5,
+        });
     });
 });

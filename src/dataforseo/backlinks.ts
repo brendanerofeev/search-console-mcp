@@ -168,3 +168,116 @@ export async function linkGap(
             : 'No shared referring domains across these competitors. That is a finding rather than an error: this niche has no common link ecosystem to mine, so link building here is manual outreach, not list extraction.',
     };
 }
+
+export interface ReferringDomain {
+    domain: string;
+    rank: number;
+    backlinks: number;
+    dofollowBacklinks: number;
+    firstSeen?: string;
+    spamScore: number;
+    /** Which of the supplied competitors this domain links to. */
+    linksTo: string[];
+}
+
+/** One competitor's referring domains, strongest first. */
+async function referringDomainsFor(target: string, limit: number): Promise<ReferringDomain[]> {
+    const { result } = await call<Array<{ items?: Array<Record<string, unknown>> }>>(
+        '/backlinks/referring_domains/live',
+        {
+            target,
+            limit,
+            order_by: ['rank,desc'],
+            backlinks_status_type: 'live',
+            // Exclude domains that only ever linked to a dead page: they are a
+            // record of a page that used to exist, not a place we can get a link.
+            filters: [['backlinks', '>', 0]],
+        },
+        { siteUrl: target }
+    );
+    const items = result?.[0]?.items ?? [];
+    return items.map((it) => ({
+        domain: String(it.domain ?? ''),
+        rank: Number(it.rank ?? 0),
+        backlinks: Number(it.backlinks ?? 0),
+        dofollowBacklinks: Number(it.dofollow ?? 0),
+        firstSeen: it.first_seen ? String(it.first_seen) : undefined,
+        spamScore: Number(it.backlinks_spam_score ?? 0),
+        linksTo: [target],
+    }));
+}
+
+export interface LinkProspect extends ReferringDomain {
+    /** How many of the competitors this domain links to. Higher = warmer. */
+    competitorsLinked: number;
+}
+
+/**
+ * Domains linking to ANY competitor but not to us.
+ *
+ * WHY this exists alongside `linkGap`: `backlinks/domain_intersection` requires
+ * a domain to link to EVERY target, which on a niche with no shared ecosystem
+ * returns nothing at all. That is a true answer to the wrong question. Almost
+ * every real prospect links to one or two competitors, not all of them, so the
+ * useful set is the union minus our own referring domains.
+ *
+ * Ordered by how many competitors a domain links to, then by rank: a domain
+ * that has linked to three businesses like ours is a warmer prospect than a
+ * stronger domain that linked to one.
+ */
+export async function linkProspects(
+    siteUrl: string,
+    competitors: string[],
+    opts: { perCompetitor?: number; limit?: number; maxSpamScore?: number } = {}
+): Promise<{
+    siteUrl: string;
+    ourDomains: number;
+    competitorsScanned: string[];
+    totalCandidates: number;
+    prospects: LinkProspect[];
+    note: string;
+}> {
+    const host = hostOf(siteUrl);
+    const perCompetitor = opts.perCompetitor ?? 200;
+    const limit = opts.limit ?? 60;
+    const maxSpamScore = opts.maxSpamScore ?? 30;
+
+    // Ours first, so we never present a domain that already links to us as an
+    // opportunity — that is the single most annoying way to waste outreach time.
+    const ours = new Set((await referringDomainsFor(host, perCompetitor)).map((d) => d.domain));
+
+    const merged = new Map<string, LinkProspect>();
+    const scanned: string[] = [];
+    for (const competitor of competitors.map(hostOf).filter(Boolean)) {
+        scanned.push(competitor);
+        for (const d of await referringDomainsFor(competitor, perCompetitor)) {
+            if (!d.domain || ours.has(d.domain)) continue;
+            // A competitor's own domain is not a prospect.
+            if (d.domain === host || competitors.map(hostOf).includes(d.domain)) continue;
+            const existing = merged.get(d.domain);
+            if (existing) {
+                existing.linksTo.push(competitor);
+                existing.competitorsLinked = existing.linksTo.length;
+                existing.backlinks += d.backlinks;
+            } else {
+                merged.set(d.domain, { ...d, linksTo: [competitor], competitorsLinked: 1 });
+            }
+        }
+    }
+
+    const all = [...merged.values()].filter((d) => d.spamScore <= maxSpamScore);
+    all.sort((a, b) => b.competitorsLinked - a.competitorsLinked || b.rank - a.rank);
+
+    return {
+        siteUrl,
+        ourDomains: ours.size,
+        competitorsScanned: scanned,
+        totalCandidates: merged.size,
+        prospects: all.slice(0, limit),
+        note:
+            `${merged.size} domains link to at least one competitor and not to ${host}. ` +
+            `Filtered to spam score <= ${maxSpamScore}. Domains linking to several competitors ` +
+            'are the warmest: they demonstrably link to more than one business like this one, ' +
+            'so the link is repeatable rather than a one-off relationship.',
+    };
+}

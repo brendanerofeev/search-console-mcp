@@ -78,9 +78,40 @@ you are looking at.
 
 ---
 
+## `link_prospects`
+
+Domains linking to **any** competitor but not to you. In practice this is the
+one you want.
+
+| Input | Required | Notes |
+|---|---|---|
+| `siteUrl` | yes | The site property URL |
+| `competitors` | no | Defaults to those recorded on the site profile |
+| `perCompetitor` | no | Referring domains pulled per competitor, default 200 |
+| `limit` | no | Max prospects returned, default 60 |
+| `maxSpamScore` | no | Drop domains above this spam score, default 30 |
+
+**Why this exists next to `link_gap`.** `domain_intersection` requires a domain
+to link to *every* target. In a niche with no shared link ecosystem that returns
+nothing, which reads as "no opportunities" when it actually means the question
+was wrong. Most genuine prospects link to one or two competitors, never all of
+them.
+
+Results are ordered by `competitorsLinked` first and rank second, deliberately.
+A modest domain that has linked to three businesses like yours is a warmer
+prospect than a strong domain that linked to one, because the first is a
+repeatable placement and the second may be a personal relationship.
+
+Domains already linking to you are excluded, as are the competitors themselves.
+
+**Cost:** roughly `$0.02` per competitor scanned, plus one call for your own
+site to build the exclusion set.
+
+---
+
 ## Reading the two together
 
-`backlink_report` sizes the problem. `link_gap` gives you somewhere to start.
+`backlink_report` sizes the problem. `link_prospects` gives you somewhere to start, and `link_gap` narrows to the domains every competitor shares when such a set exists.
 
 A gap of more than about 20 referring domains is not closable by on-page work,
 and the verdict says so directly rather than leaving you to infer it. Below
