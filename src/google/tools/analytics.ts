@@ -40,10 +40,10 @@ function generateCacheKey(options: AnalyticsOptions): string {
 export interface AnalyticsOptions {
   /** The URL of the property (site or domain) in GSC. */
   siteUrl: string;
-  /** Start date in YYYY-MM-DD format. */
-  startDate: string;
-  /** End date in YYYY-MM-DD format. */
-  endDate: string;
+  /** Start date in YYYY-MM-DD format. Defaults to 28 days before endDate. */
+  startDate?: string;
+  /** End date in YYYY-MM-DD format. Defaults to three days ago. */
+  endDate?: string;
   /** Dimensions to group data by (e.g., 'query', 'page', 'device', 'country', 'date'). */
   dimensions?: string[];
   /** Search type: 'web', 'image', 'video', 'news', 'discover', or 'googleNews'. Defaults to 'web'. */

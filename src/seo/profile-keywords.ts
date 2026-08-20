@@ -28,39 +28,85 @@ export interface ProfileKeyword {
 }
 
 /** Noise words that appear in service labels but not in searches. */
-const LABEL_NOISE = /\b(programmes?|and replacement|appliances|systems?)\b/g;
+const LABEL_NOISE = /\bprogrammes?\b/g;
+
+/** Qualifiers commonly shared by every item in a compound service label. */
+const SHARED_PREFIXES = new Set([
+    'ai', 'business', 'commercial', 'construction', 'cyber', 'data', 'digital',
+    'industrial', 'project', 'residential', 'security', 'software', 'technology',
+]);
+
+/** Service nouns commonly shared by comma-separated alternatives. */
+const SHARED_SUFFIXES = new Set([
+    'advisory', 'automation', 'cleaning', 'consulting', 'development', 'insights',
+    'installation', 'integration', 'maintenance', 'management', 'reporting',
+    'services', 'solutions', 'support',
+]);
 
 /**
  * Turn a service label into the phrases a searcher would actually type.
  *
  * Labels are written for humans reading a menu ("Blocked Drains & Drain
  * Cleaning"), and concatenating them produces compounds nobody searches
- * ("blocked drains drain cleaning brisbane"). Splitting on and/& yields the
- * real alternatives instead — "blocked drains", "drain cleaning".
+ * ("blocked drains drain cleaning brisbane"). Split every comma/and/& first,
+ * then carry an obvious shared qualifier across the alternatives: "quote,
+ * proposal and tender automation" becomes "quote automation", "proposal
+ * automation", "tender automation" rather than comma-bearing fragments.
  */
 function serviceVariants(service: string): string[] {
     const cleaned = service
         .toLowerCase()
+        .replace(/\b(?:appliance|system) replacement\b/g, ' ')
         .replace(LABEL_NOISE, ' ')
-        // Removing a noise word can strand its conjunction ("gas fitting and ").
-        .replace(/\s+(?:and|&|,)\s*$/, '')
-        .replace(/^\s*(?:and|&|,)\s+/, '')
         .replace(/\s+/g, ' ')
         .trim();
 
-    const parts = cleaned.split(/\s+(?:and|&|,)\s+/).map((p) => p.trim()).filter(Boolean);
+    const parts = cleaned
+        .split(/\s*(?:,|&|\band\b)\s*/)
+        .map((part) => part.replace(/^\W+|\W+$/g, '').trim())
+        .filter(Boolean);
+    if (parts.length <= 1) return cleaned.length > 2 ? [cleaned] : [];
+
+    const words = parts.map((part) => part.split(/\s+/));
+    const firstWord = words[0][0];
+    const lastWords = words[words.length - 1];
+    const forwardPrefix = SHARED_PREFIXES.has(firstWord) ? firstWord : null;
+    const backwardPrefix = SHARED_PREFIXES.has(lastWords[0]) ? lastWords[0] : null;
+    const backwardSuffix = SHARED_SUFFIXES.has(lastWords[lastWords.length - 1])
+        ? lastWords[lastWords.length - 1]
+        : null;
 
     const seen = new Set<string>();
     const out: string[] = [];
-    for (const part of parts) {
-        // Single-word fragments of a compound label are modifiers, not services:
-        // "burst and leaking pipes" splits to "burst", which as a keyword means
-        // nothing. Keep a lone word only when it IS the whole label.
-        if (part.split(' ').length < 2 && parts.length > 1) continue;
-        if (part.length > 2 && !seen.has(part)) { seen.add(part); out.push(part); }
+    for (let i = 0; i < parts.length; i++) {
+        let phrase = parts[i];
+        const partWords = words[i];
+
+        if (partWords.length === 1) {
+            // A leading category word belongs on the later alternatives, not as
+            // a bare candidate of its own ("software and systems integration").
+            if (i === 0 && forwardPrefix === partWords[0]) continue;
+            if (forwardPrefix && i > 0 && partWords[0] !== forwardPrefix) {
+                phrase = `${forwardPrefix} ${phrase}`;
+            } else if (backwardPrefix && i < parts.length - 1) {
+                phrase = `${backwardPrefix} ${phrase}`;
+            } else if (backwardSuffix && i < parts.length - 1) {
+                phrase = `${phrase} ${backwardSuffix}`;
+            } else {
+                // "burst and leaking pipes" must not emit the meaningless
+                // standalone candidate "burst".
+                continue;
+            }
+        } else if (forwardPrefix && i > 0 && partWords[0] !== forwardPrefix) {
+            phrase = `${forwardPrefix} ${phrase}`;
+        }
+
+        if (phrase.length > 2 && !seen.has(phrase)) {
+            seen.add(phrase);
+            out.push(phrase);
+        }
     }
-    // Fall back to the cleaned label if every part was filtered out.
-    if (!out.length && cleaned.length > 2) out.push(cleaned);
+
     return out.slice(0, 3);
 }
 

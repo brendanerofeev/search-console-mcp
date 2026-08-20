@@ -14,23 +14,44 @@ export async function analyticsQueryHandler(args: {
   endDate?: string;
   dimensions?: string[];
   filters?: any[];
+  /** Case-insensitive substring filter on the search query dimension. */
+  search?: string;
+  /** Maximum rows returned per engine. */
+  limit?: number;
+  /** Backwards-compatible alias for limit. */
   rowLimit?: number;
   engine?: "google" | "bing" | "all";
 }) {
   const engine = args.engine ?? "all";
   const dimensions = args.dimensions ?? ["query"];
-  const queryParams: any = {
+  const search = args.search?.trim();
+  const limit = args.limit ?? args.rowLimit;
+  const filters = [...(args.filters ?? [])];
+  if (search) {
+    filters.push({ dimension: "query", operator: "contains", expression: search });
+  }
+
+  const queryParams = {
     siteUrl: args.siteUrl,
     startDate: args.startDate,
     endDate: args.endDate,
-    dimensions: dimensions,
-    filters: args.filters,
-    rowLimit: args.rowLimit
+    dimensions,
+    filters: filters.length ? filters : undefined,
+    limit,
+  };
+
+  const queryBing = async () => {
+    let rows = await bingAnalytics.getQueryStats(args.siteUrl, args.startDate, args.endDate);
+    if (search) {
+      const needle = search.toLowerCase();
+      rows = rows.filter((row: any) => String(row.Query ?? row.query ?? "").toLowerCase().includes(needle));
+    }
+    return limit == null ? rows : rows.slice(0, limit);
   };
 
   const results = await executeParallel({
     google: (engine === "google" || engine === "all") ? () => googleAnalytics.queryAnalytics(queryParams) : null,
-    bing: (engine === "bing" || engine === "all") ? () => bingAnalytics.getQueryStats(args.siteUrl) : null,
+    bing: (engine === "bing" || engine === "all") ? queryBing : null,
   });
 
   return {

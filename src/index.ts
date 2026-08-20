@@ -210,7 +210,9 @@ export function createMcpServer(): McpServer {
       endDate: z.string().optional().describe("End date YYYY-MM-DD"),
       dimensions: z.array(z.string()).optional().describe("Dimensions: query, page, country, device, searchAppearance, date"),
       filters: z.array(z.any()).optional().describe("Filter objects"),
-      rowLimit: z.number().optional().describe("Row limit"),
+      search: z.string().optional().describe("Case-insensitive substring filter on search queries"),
+      limit: z.number().int().min(1).max(25000).optional().describe("Maximum rows returned per engine"),
+      rowLimit: z.number().int().min(1).max(25000).optional().describe("Deprecated alias for limit"),
       engine: z.enum(["google", "bing", "all"]).optional().describe("Target search engine (default: all)")
     },
     analyticsFluent.analyticsQueryHandler

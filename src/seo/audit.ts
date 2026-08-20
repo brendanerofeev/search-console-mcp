@@ -132,19 +132,34 @@ export async function auditSite(siteUrl: string): Promise<AuditResult> {
         fix: apex && !apex.url.startsWith('https://') ? 'Force a 301 from HTTP to HTTPS.' : '',
     });
 
-    const wwwHost = domain.startsWith('www.') ? domain.slice(4) : `www.${domain}`;
-    const wwwRes = await fetchText(`https://${wwwHost}`);
-    if (wwwRes && wwwRes.status === 200) {
-        const landed = new URL(wwwRes.url).host;
-        const consistent = landed === domain || landed === wwwHost;
+    const apexHost = domain.startsWith('www.') ? domain.slice(4) : domain;
+    const wwwHost = `www.${apexHost}`;
+    const [apexHttps, wwwHttps] = await Promise.all([
+        fetchText(`https://${apexHost}`),
+        fetchText(`https://${wwwHost}`),
+    ]);
+    if (apexHttps?.status === 200 && wwwHttps?.status === 200) {
+        const apexLanded = new URL(apexHttps.url).host;
+        const wwwLanded = new URL(wwwHttps.url).host;
+        const sameDestination = apexLanded === wwwLanded;
         add({
             id: 'canonical-host', category: 'technical', priority: 2,
             title: 'One canonical host (www vs apex)',
-            status: consistent && landed !== domain ? 'warn' : 'pass',
-            evidence: `https://${wwwHost} resolved to host "${landed}".`,
-            fix: landed !== domain
-                ? `Both hosts serve content. 301 one to the other so ranking signals are not split.`
-                : '',
+            status: sameDestination ? 'pass' : 'warn',
+            evidence: sameDestination
+                ? `Apex and www both resolve to "${apexLanded}".`
+                : `Apex resolves to "${apexLanded}" while www resolves to "${wwwLanded}".`,
+            fix: sameDestination
+                ? ''
+                : 'Both hosts serve content. 301 one to the other so ranking signals are not split.',
+        });
+    } else {
+        add({
+            id: 'canonical-host', category: 'technical', priority: 2,
+            title: 'One canonical host (www vs apex)',
+            status: 'error',
+            evidence: `HTTPS checks returned apex=${apexHttps?.status ?? 'no response'}, www=${wwwHttps?.status ?? 'no response'}.`,
+            fix: 'Confirm both host variants resolve, then redirect one permanently to the canonical host.',
         });
     }
 
