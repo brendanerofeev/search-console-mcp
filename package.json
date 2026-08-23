@@ -1,8 +1,8 @@
 {
   "name": "search-console-mcp",
-  "version": "2.0.3",
+  "version": "2.1.0",
   "mcpName": "io.github.saurabhsharma2u/search-console-mcp",
-  "description": "MCP server for Google Search Console, Bing Webmaster Tools, and Google Analytics 4",
+  "description": "MCP server for Google Search Console, Bing Webmaster Tools, Google Analytics 4, and Adsense",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -15,13 +15,17 @@
   ],
   "scripts": {
     "build": "tsc",
-    "test": "vitest run",
+    "setup": "pnpm build && node dist/setup.js",
+    "test": "vitest run --exclude 'tests/e2e/**'",
+    "test:e2e": "pnpm build && vitest run tests/e2e",
+    "test:all": "pnpm test && pnpm test:e2e",
     "inspector": "npx @modelcontextprotocol/inspector@latest node dist/index.js",
     "test:live:google": "tsx tests/live-google-test.ts",
     "test:live:bing": "tsx tests/live-bing-test.ts",
     "test:live:ga4": "tsx tests/live-ga4-test.ts",
     "test:live:common": "tsx tests/live-common-test.ts",
-    "test:live": "tsx tests/live-google-test.ts && tsx tests/live-bing-test.ts && tsx tests/live-common-test.ts && tsx tests/live-ga4-test.ts",
+    "test:live:adsense": "tsx tests/live-adsense-test.ts",
+    "test:live": "tsx tests/live-google-test.ts && tsx tests/live-bing-test.ts && tsx tests/live-common-test.ts && tsx tests/live-ga4-test.ts && tsx tests/live-adsense-test.ts",
     "docs": "typedoc",
     "pack:mcpb": "pnpm build && mcpb pack . search-console-mcp.mcpb",
     "deploy:registry": "mcp-publisher publish",
@@ -34,7 +38,8 @@
     "google-search-console",
     "seo",
     "google analytics",
-    "ga4"
+    "ga4",
+    "adsense"
   ],
   "author": "Saurabh Sharma",
   "license": "MIT",
@@ -48,6 +53,7 @@
   "homepage": "https://searchconsolemcp.saurabh.app",
   "dependencies": {
     "@adobe/structured-data-validator": "^1.7.0",
+    "@clack/prompts": "^1.7.0",
     "@google-analytics/data": "^6.1.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@napi-rs/keyring": "^1.3.0",

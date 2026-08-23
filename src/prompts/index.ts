@@ -53,8 +53,8 @@ export function registerPrompts(server: McpServer) {
             site_url: z.string().optional().describe("The URL of the site (optional, defaults to env/context)"),
             period: z.string().optional().describe("Period to analyze (default: 'last 28 days')")
         },
-        ({ site_url, period = "last 28 days" }) => {
-            const { isGoogleEnabled, isBingEnabled, isGA4Enabled } = getEnabledPlatforms();
+        async ({ site_url, period = "last 28 days" }) => {
+            const { isGoogleEnabled, isBingEnabled, isGA4Enabled } = await getEnabledPlatforms();
             const steps = new StepBuilder();
 
             if (isGoogleEnabled) {
@@ -99,8 +99,8 @@ export function registerPrompts(server: McpServer) {
             min_impressions: z.number().optional().describe("Minimum impressions threshold (default: 1000)"),
             date_range: z.string().optional().describe("Date range to analyze (default: 'last 90 days')")
         },
-        ({ site_url, min_impressions = 1000, date_range = "last 90 days" }) => {
-            const { isGoogleEnabled, isBingEnabled, isGA4Enabled } = getEnabledPlatforms();
+        async ({ site_url, min_impressions = 1000, date_range = "last 90 days" }) => {
+            const { isGoogleEnabled, isBingEnabled, isGA4Enabled } = await getEnabledPlatforms();
             const steps = new StepBuilder();
 
             if (isGoogleEnabled) {
@@ -140,8 +140,8 @@ export function registerPrompts(server: McpServer) {
             brand_terms: z.string().optional().describe("Comma-separated brand terms (e.g. 'nike,air max')"),
             date_range: z.string().optional().describe("Date range to analyze (default: 'last 90 days')")
         },
-        ({ site_url, brand_terms, date_range = "last 90 days" }) => {
-            const { isGoogleEnabled, isBingEnabled, isGA4Enabled } = getEnabledPlatforms();
+        async ({ site_url, brand_terms, date_range = "last 90 days" }) => {
+            const { isGoogleEnabled, isBingEnabled, isGA4Enabled } = await getEnabledPlatforms();
             const steps = new StepBuilder();
 
             if (isGoogleEnabled) {
@@ -191,8 +191,8 @@ export function registerPrompts(server: McpServer) {
             page_url: z.string().describe("The page URL to analyze"),
             date_range: z.string().optional().describe("Date range to analyze (default: 'last 28 days')")
         },
-        ({ page_url, date_range = "last 28 days" }) => {
-            const { isGoogleEnabled, isBingEnabled, isGA4Enabled } = getEnabledPlatforms();
+        async ({ page_url, date_range = "last 28 days" }) => {
+            const { isGoogleEnabled, isBingEnabled, isGA4Enabled } = await getEnabledPlatforms();
             const steps = new StepBuilder();
 
             if (isGoogleEnabled) {
@@ -232,8 +232,8 @@ export function registerPrompts(server: McpServer) {
             site_url: z.string().optional().describe("The URL of the site"),
             date_range: z.string().optional().describe("Date range (default: 'last 28 days')")
         },
-        ({ site_url, date_range = "last 28 days" }) => {
-            const { isGoogleEnabled, isBingEnabled, isGA4Enabled } = getEnabledPlatforms();
+        async ({ site_url, date_range = "last 28 days" }) => {
+            const { isGoogleEnabled, isBingEnabled, isGA4Enabled } = await getEnabledPlatforms();
             const steps = new StepBuilder();
 
             if (isGoogleEnabled && isBingEnabled) {
@@ -271,8 +271,8 @@ export function registerPrompts(server: McpServer) {
             site_url: z.string().optional().describe("The URL of the site"),
             date_range: z.string().optional().describe("Date range (default: 'last 90 days')")
         },
-        ({ site_url, date_range = "last 90 days" }) => {
-            const { isGoogleEnabled, isBingEnabled, isGA4Enabled } = getEnabledPlatforms();
+        async ({ site_url, date_range = "last 90 days" }) => {
+            const { isGoogleEnabled, isBingEnabled, isGA4Enabled } = await getEnabledPlatforms();
             const steps = new StepBuilder();
 
             if (isGoogleEnabled) {
@@ -311,8 +311,8 @@ export function registerPrompts(server: McpServer) {
             date_range: z.string().optional().describe("Date range (default: 'last 28 days')"),
             compare_to: z.string().optional().describe("Comparison period (default: 'previous period')")
         },
-        ({ site_url, brand_terms, date_range = "last 28 days", compare_to = "previous period" }) => {
-            const { isGoogleEnabled, isBingEnabled, isGA4Enabled } = getEnabledPlatforms();
+        async ({ site_url, brand_terms, date_range = "last 28 days", compare_to = "previous period" }) => {
+            const { isGoogleEnabled, isBingEnabled, isGA4Enabled } = await getEnabledPlatforms();
             const steps = new StepBuilder();
 
             if (isGoogleEnabled) {
@@ -375,7 +375,75 @@ export function registerPrompts(server: McpServer) {
     );
 
     // ────────────────────────────────────────────────────────────────
-    // 9. v2.0 Fluent MCP Prompts (MCP 2026-07-28 Spec)
+    // 9. AdSense Earnings Review
+    // ────────────────────────────────────────────────────────────────
+    server.prompt(
+        "adsense_earnings_review",
+        {
+            date_range: z.string().optional().describe("Date range to analyze (default: 'last 28 days')")
+        },
+        async ({ date_range = "last 28 days" }) => {
+            const { isAdSenseEnabled } = await getEnabledPlatforms();
+            const steps = new StepBuilder();
+
+            if (isAdSenseEnabled) {
+                steps.add(`Run 'adsense_report' with startDate/endDate covering the ${date_range} and dimension DATE to get the daily earnings trend.`);
+                steps.add("Run 'adsense_report' broken down by DOMAIN_NAME to see which properties earn the most.");
+                steps.add("Run 'adsense_payments_alerts' to check outstanding balance and any account alerts.");
+                steps.synthesize("Summarize: total earnings for the period, best and worst days, which domain drives revenue, current unpaid balance, and any policy alerts that need attention.");
+            } else {
+                steps.synthesize("Note: No AdSense account is configured. Run 'search-console-mcp setup --engine=adsense' first.");
+            }
+
+            return {
+                messages: [{
+                    role: "user",
+                    content: {
+                        type: "text",
+                        text: `Review my Google AdSense earnings performance (${date_range}).\n\nWorkflow:\n${steps}`
+                    }
+                }]
+            };
+        }
+    );
+
+    // ────────────────────────────────────────────────────────────────
+    // 10. AdSense Monetization Audit
+    // ────────────────────────────────────────────────────────────────
+    server.prompt(
+        "adsense_monetization_audit",
+        {
+            date_range: z.string().optional().describe("Date range to analyze (default: 'last 30 days')")
+        },
+        async ({ date_range = "last 30 days" }) => {
+            const { isAdSenseEnabled } = await getEnabledPlatforms();
+            const steps = new StepBuilder();
+
+            if (isAdSenseEnabled) {
+                steps.add(`Run 'adsense_report' for the ${date_range} broken down by AD_UNIT_NAME, ordered by ESTIMATED_EARNINGS descending, to find top-earning ad units.`);
+                steps.add("Run 'adsense_report' broken down by PLATFORM_TYPE_NAME to compare mobile vs desktop monetization.");
+                steps.add("Run 'adsense_report' broken down by COUNTRY_NAME to see geography-based RPM differences.");
+                steps.add("Identify ad units with high impressions but low CTR or low PAGE_VIEWS_RPM — these are optimization candidates.");
+                steps.add("Run 'adsense_payments_alerts' to surface policy issues that could suppress earnings.");
+                steps.synthesize("Deliver an action list ranked by revenue impact: which ad units to reposition/test, which platforms or geographies are under-monetized, and any compliance risks.");
+            } else {
+                steps.synthesize("Note: No AdSense account is configured. Run 'search-console-mcp setup --engine=adsense' first.");
+            }
+
+            return {
+                messages: [{
+                    role: "user",
+                    content: {
+                        type: "text",
+                        text: `Audit my AdSense monetization efficiency and find revenue opportunities (${date_range}).\n\nWorkflow:\n${steps}`
+                    }
+                }]
+            };
+        }
+    );
+
+    // ────────────────────────────────────────────────────────────────
+    // 11. v2.0 Fluent MCP Prompts (MCP 2026-07-28 Spec)
     // ────────────────────────────────────────────────────────────────
     server.prompt(
         "seo_traffic_detective",

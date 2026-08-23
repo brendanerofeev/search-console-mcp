@@ -230,6 +230,59 @@ registerTool(
   analyticsFluent.analyticsAdvancedHandler
 );
 
+// Google AdSense
+registerTool(
+  "adsense_accounts",
+  "List configured AdSense publisher accounts, or discover all publisher accounts the authorized user has access to.",
+  {
+    accountId: z.string().optional().describe("Specific AdSense account ID (default: auto-select)"),
+    mode: z.enum(["configured", "discover"]).optional().describe("configured = saved accounts; discover = all accessible publisher IDs (default: configured)")
+  },
+  async (args: any) => {
+    const { listAdSenseAccounts, listAccessibleAdSenseAccounts } = await import("./adsense/tools/accounts.js");
+    const result = args.mode === "discover"
+      ? await listAccessibleAdSenseAccounts(args.accountId)
+      : await listAdSenseAccounts(args.accountId);
+    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+  }
+);
+
+registerTool(
+  "adsense_report",
+  "Google AdSense earnings & performance report: estimated earnings, impressions, clicks, CTR and RPM with dimension breakdowns.",
+  {
+    accountId: z.string().optional().describe("Specific AdSense account ID (default: auto-select)"),
+    dateRange: z.enum(["TODAY", "YESTERDAY", "THIS_WEEK", "LAST_WEEK", "THIS_MONTH", "LAST_MONTH", "LAST_7_DAYS", "LAST_30_DAYS"]).optional().describe("Preset date range (default: LAST_7_DAYS)"),
+    startDate: z.string().optional().describe("Custom start date YYYY-MM-DD (requires endDate, overrides dateRange)"),
+    endDate: z.string().optional().describe("Custom end date YYYY-MM-DD (requires startDate)"),
+    dimensions: z.array(z.enum(["DATE", "WEEK", "MONTH", "DOMAIN_NAME", "COUNTRY_NAME", "PLATFORM_TYPE_NAME", "AD_UNIT_ID", "AD_UNIT_NAME", "CUSTOM_CHANNEL_ID", "CUSTOM_CHANNEL_NAME", "PRODUCT_NAME", "PRODUCT_CODE", "URL_CHANNEL_ID"])).optional().describe("Breakdown dimensions"),
+    metrics: z.array(z.enum(["ESTIMATED_EARNINGS", "PAGE_VIEWS", "IMPRESSIONS", "CLICKS", "PAGE_VIEWS_CTR", "PAGE_VIEWS_RPM", "IMPRESSIONS_CTR", "IMPRESSIONS_RPM"])).optional().describe("Metrics to report (default: earnings, page views, impressions, clicks, RPM)"),
+    rowLimit: z.number().optional().describe("Max rows to return (default: 100, max: 200)"),
+    orderBy: z.string().optional().describe('Sort order as "+METRIC" (ascending) or "-METRIC" (descending), e.g. "-ESTIMATED_EARNINGS"')
+  },
+  async (args: any) => {
+    const { generateReport } = await import("./adsense/tools/reports.js");
+    const result = await generateReport(args);
+    return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+  }
+);
+
+registerTool(
+  "adsense_payments_alerts",
+  "Outstanding AdSense payments and account alerts (policy issues, payment holds).",
+  {
+    accountId: z.string().optional().describe("Specific AdSense account ID (default: auto-select)")
+  },
+  async (args: any) => {
+    const { listPayments, listAlerts } = await import("./adsense/tools/reports.js");
+    const [payments, alerts] = await Promise.all([
+      listPayments(args.accountId),
+      listAlerts(args.accountId)
+    ]);
+    return { content: [{ type: "text", text: JSON.stringify({ payments, alerts }, null, 2) }] };
+  }
+);
+
 // 4. URL Inspection & PageSpeed
 registerTool(
   "inspection_inspect",
@@ -357,19 +410,19 @@ registerTool(
   }
 );
 
-// Internal silent fallback router interceptor for CallTool requests.
-//
-// Registered tools take priority. Ten legacy keys share a name with a modern
-// tool, and the legacy shims accept a different argument shape, so checking the
-// fallback map first left those tools permanently calling the wrong handler
-// with mangled arguments. Legacy names are aliases only for tools that are not
-// registered under the current schema.
+// Legacy names are aliases only for tools not registered under the current
+// schema; non-legacy traffic goes to the SDK dispatcher for validation.
+const sdkCallToolHandler =
+  (server.server as any)._requestHandlers?.get('tools/call') ?? null;
 (server.server as any).setRequestHandler(CallToolRequestSchema, async (request: any, extra: any) => {
   const toolName = request.params.name;
   const registeredTool = (server as any)._registeredTools[toolName];
   if (shouldUseLegacyFallback(toolName, Boolean(registeredTool))) {
     const legacyResult = await executeLegacyFallback(toolName, request.params.arguments);
     if (legacyResult) return legacyResult;
+  }
+  if (sdkCallToolHandler) {
+    return await sdkCallToolHandler(request, extra);
   }
   if (!registeredTool) {
     throw new Error(`Tool ${toolName} not found`);
@@ -451,14 +504,16 @@ async function main() {
 
   const hasBing = accounts.some(a => a.engine === 'bing') || !!process.env.BING_API_KEY;
   const hasGA4 = accounts.some(a => a.engine === 'ga4');
+  const hasAdSense = accounts.some(a => a.engine === 'adsense');
 
-  if (!hasGoogle && !hasBing && !hasGA4) {
+  if (!hasGoogle && !hasBing && !hasGA4 && !hasAdSense) {
     printBoxHeader('Authentication', colors.red);
 
     console.error(`${colors.bold}${colors.dim}🔍 Connection Status:${colors.reset}`);
     printStatusLine('Google', hasGoogle);
     printStatusLine('GA4', hasGA4);
     printStatusLine('Bing', hasBing);
+    printStatusLine('AdSense', hasAdSense);
     console.error('');
 
     if (!hasGoogle) {
@@ -476,6 +531,11 @@ async function main() {
       console.error(`${colors.blue}ℹ${colors.reset} ${colors.dim}Run:${colors.reset} ${colors.bold}${colors.cyan}search-console-mcp setup --engine=bing${colors.reset}`);
     }
 
+    if (!hasAdSense) {
+      console.error(`\n${colors.red}✘${colors.reset} ${colors.bold}AdSense not configured.${colors.reset}`);
+      console.error(`${colors.blue}ℹ${colors.reset} ${colors.dim}Run:${colors.reset} ${colors.bold}${colors.cyan}search-console-mcp setup --engine=adsense${colors.reset}`);
+    }
+
     console.error(`\n${colors.dim}${'─'.repeat(64)}${colors.reset}\n`);
   }
 
@@ -491,7 +551,9 @@ async function main() {
     const googleStatus = hasGoogle ? `${colors.green}✔ Google${colors.reset}` : `${colors.red}✘ Google${colors.reset}`;
     const ga4Status = hasGA4 ? `${colors.green}✔ GA4${colors.reset}` : `${colors.red}✘ GA4${colors.reset}`;
     const bingStatus = hasBing ? `${colors.green}✔ Bing${colors.reset}` : `${colors.red}✘ Bing${colors.reset}`;
-    console.error(`Search Console MCP running on stdio [ ${googleStatus} | ${ga4Status} | ${bingStatus} ]`);
+    const adsenseStatus = hasAdSense ? `${colors.green}✔ AdSense${colors.reset}` : '';
+    const statusParts = [googleStatus, ga4Status, bingStatus, adsenseStatus].filter(Boolean);
+    console.error(`Search Console MCP running on stdio [ ${statusParts.join(' | ')} ]`);
   }
 }
 
