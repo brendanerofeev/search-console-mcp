@@ -1,4 +1,5 @@
 import * as googleAnalytics from "../../google/tools/analytics.js";
+import type { AnalyticsOptions } from "../../google/tools/analytics.js";
 import * as bingAnalytics from "../../bing/tools/analytics.js";
 import * as ga4Analytics from "../../ga4/tools/analytics.js";
 import * as ga4Realtime from "../../ga4/tools/realtime.js";
@@ -19,7 +20,7 @@ export async function analyticsQueryHandler(args: {
 }) {
   const engine = args.engine ?? "all";
   const dimensions = args.dimensions ?? ["query"];
-  const queryParams: any = {
+  const queryParams: AnalyticsOptions = {
     siteUrl: args.siteUrl,
     startDate: args.startDate,
     endDate: args.endDate,

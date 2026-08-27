@@ -67,6 +67,7 @@ import { createToolRegistrar, isCliRun, runCli } from "./utils/cli.js";
 import * as sitesFluent from "./tools/fluent/sites.js";
 import * as sitemapsFluent from "./tools/fluent/sitemaps.js";
 import * as analyticsFluent from "./tools/fluent/analytics.js";
+import * as genaiFluent from "./tools/fluent/genai.js";
 import * as inspectionFluent from "./tools/fluent/inspection.js";
 import * as indexingFluent from "./tools/fluent/indexing.js";
 import * as seoFluent from "./tools/fluent/seo.js";
@@ -228,6 +229,19 @@ registerTool(
     endDate: z.string().optional().describe("End date YYYY-MM-DD")
   },
   analyticsFluent.analyticsAdvancedHandler
+);
+
+registerTool(
+  "genai_query_insights",
+  "Detect likely generative-AI / AI-Mode / conversational fanout queries across Google and Bing. Because neither search engine exposes generative-AI citation data via its public API yet, this matches heuristic patterns (prompt verbs, follow-ups, conversational phrasing) on regular query-level performance data; it is an undercount, not an official report.",
+  {
+    siteUrl: z.string().describe("The site property URL"),
+    days: z.number().optional().describe("Lookback window in days (default: 28)"),
+    engine: z.enum(["google", "bing", "all"]).optional().describe("Target search engine (default: all)"),
+    includePages: z.boolean().optional().describe("Enrich matched queries with the pages they map to (default: false)"),
+    minImpressions: z.number().optional().describe("Ignore queries with fewer impressions than this (default: 1)")
+  },
+  genaiFluent.genaiQueryInsightsHandler
 );
 
 // Google AdSense

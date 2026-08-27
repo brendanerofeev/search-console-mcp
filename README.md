@@ -20,7 +20,23 @@ Stop exporting CSVs. Start asking your AI agent questions about your site's traf
 
 ---
 
-## ⚡ What's New in v2.1.0
+## ⚡ What's New in v2.1.2
+
+* 🤖 **GenAI Query Insights (`genai_query_insights`)**: Surfaces likely generative-AI / AI-Mode / conversational "fanout" queries across Google and Bing. This is **custom heuristic logic** — no official API is provided by Google or Bing for GenAI citation data, so it flags prompt verbs, follow-ups, acknowledgements, and conversational phrasing on the regular query data both engines already return. See [docs →](https://searchconsolemcp.saurabh.app/tools/seo-intelligence)
+* 🪲 **`analytics_query` fix**: `rowLimit` is now honored instead of being silently ignored (previously always returned up to 1000 rows); `limit` remains as a backward-compatible alias.
+
+<details>
+<summary><strong>What's New in v2.1.0</strong></summary>
+
+* 💰 **Google AdSense Integration**: Earnings reports, payments and account alerts via `setup --engine=adsense`. Enabling AdSense requires you to approve a separate `adsense.readonly` OAuth scope; your existing GSC, Bing, and GA4 configuration remains unchanged until you opt in.
+* 🔐 **OAuth-only AdSense auth**: The AdSense Management API supports user OAuth only — setup now validates access live and rejects unsupported service-account configs with actionable guidance. Multi-account users get explicit publisher-account selection with full pagination (>100 accounts).
+* 📊 **`adsense_report` upgrades**: Custom `startDate`/`endDate` now override preset `dateRange`s, plus a new `orderBy` parameter (`-ESTIMATED_EARNINGS`) for sorted revenue reports.
+* 🧪 **End-to-end MCP test suite**: The built server binary is now tested over stdio and SSE exactly like an MCP host would drive it — handshake, tool schemas, error envelopes, and multi-account resource behavior (11 e2e tests wired into CI).
+
+</details>
+
+<details>
+<summary><strong>What's New in v2.0.x</strong></summary>
 
 * 💰 **Google AdSense Integration**: Earnings reports, payments and account alerts via `setup --engine=adsense`. Enabling AdSense requires you to approve a separate `adsense.readonly` OAuth scope; your existing GSC, Bing, and GA4 configuration remains unchanged until you opt in.
 * 🔐 **OAuth-only AdSense auth**: The AdSense Management API supports user OAuth only — setup now validates access live and rejects unsupported service-account configs with actionable guidance. Multi-account users get explicit publisher-account selection with full pagination (>100 accounts).
@@ -199,6 +215,7 @@ Search Console MCP v2.0 features **7 Fluent Domain Tools** that handle all SEO, 
 | `seo_keywords_research`| `keywords`, `type: "stats" \| "related" \| "traffic"` | Keyword volumes and related keyword stats |
 | `site_health_check` | `siteUrl`, `level: "summary" \| "full" \| "crawl_issues"` | One-shot site performance & technical audit |
 | `compare_engines` | `siteUrl` | Side-by-side Google vs Bing performance breakdown |
+| `genai_query_insights` | `siteUrl`, `days`, `engine: "google" \| "bing" \| "all"`, `includePages`, `minImpressions` | Flags likely generative-AI / conversational queries (custom heuristic, no official API) |
 
 ### Google AdSense Tools
 

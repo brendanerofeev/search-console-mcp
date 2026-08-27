@@ -39,10 +39,10 @@ function generateCacheKey(options: AnalyticsOptions): string {
 export interface AnalyticsOptions {
   /** The URL of the property (site or domain) in GSC. */
   siteUrl: string;
-  /** Start date in YYYY-MM-DD format. */
-  startDate: string;
-  /** End date in YYYY-MM-DD format. */
-  endDate: string;
+  /** Start date in YYYY-MM-DD format. Defaults to 28 days before endDate. */
+  startDate?: string;
+  /** End date in YYYY-MM-DD format. Defaults to 3 days ago. */
+  endDate?: string;
   /** Dimensions to group data by (e.g., 'query', 'page', 'device', 'country', 'date'). */
   dimensions?: string[];
   /** Search type: 'web', 'image', 'video', 'news', 'discover', or 'googleNews'. Defaults to 'web'. */
@@ -58,6 +58,11 @@ export interface AnalyticsOptions {
   /** Data state: 'final' (stable data only) or 'all' (includes fresh, volatile data). Defaults to 'final'. */
   dataState?: 'final' | 'all';
   /** Maximum number of rows to return. Max 25,000. */
+  rowLimit?: number;
+  /**
+   * Alias for {@link rowLimit}. Retained for backward compatibility with
+   * internal callers. Prefer `rowLimit` going forward.
+   */
   limit?: number;
   /** Zero-based index of the first row to return. */
   startRow?: number;
@@ -194,7 +199,7 @@ export async function queryAnalytics(options: AnalyticsOptions): Promise<searchc
         aggregationType: options.aggregationType || 'auto',
         dataState: options.dataState || 'final',
 
-        rowLimit: Math.min(options.limit || 1000, 25000),
+        rowLimit: Math.min(options.rowLimit ?? options.limit ?? 1000, 25000),
       };
 
       // Add pagination support
