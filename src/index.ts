@@ -80,6 +80,7 @@ import * as reportFluent from "./tools/fluent/report.js";
 import * as auditFluent from "./tools/fluent/audit.js";
 import * as backfillFluent from "./tools/fluent/backfill.js";
 import * as backlinksFluent from "./tools/fluent/backlinks.js";
+import * as volumeFluent from "./tools/fluent/volume.js";
 import { executeLegacyFallback, legacyFallbackMap, shouldUseLegacyFallback } from "./legacy/fallback-router.js";
 import { CallToolRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 
@@ -461,6 +462,28 @@ export function createMcpServer(): McpServer {
       notes: z.string().optional().describe("Why")
     },
     reportFluent.keywordDecideHandler
+  );
+
+  registerTool(
+    "keyword_volume",
+    "Real Google Ads monthly search volume for a batch of keywords, with competition, top-of-page bids and 12-month seasonality. This is the half of keyword selection Search Console cannot give you: impressions are demand filtered through current visibility, so a term the site has never ranked for is invisible there and a term you rank ~90 for shows a fraction of its real demand. Zero volume and no-data are reported separately and never merged - zero is evidence against a keyword, null is not. DataForSEO bills PER CALL (~$0.09) for up to 1,000 keywords, so always send the whole candidate list at once; a shortlist costs exactly the same as the full set.",
+    {
+      keywords: z.array(z.string()).describe("Keywords to look up. Batch them - up to 1,000 per call for the same price"),
+      locationName: z.string().optional().describe("Location name, e.g. 'Australia' (default: Australia)"),
+      languageName: z.string().optional().describe("Language name, e.g. 'English' (default: English)")
+    },
+    volumeFluent.keywordVolumeHandler
+  );
+
+  registerTool(
+    "keyword_volume_enrich",
+    "Attach real search volume to the keyword candidates already stored for a site, so keyword_report can rank profile-derived hypotheses against measured Search Console terms instead of guessing which matters more. Only fetches candidates that have no volume yet, so re-running is cheap. Costs ~$0.09 against the prepaid DataForSEO balance when there is anything to fetch, and nothing at all when there is not.",
+    {
+      siteUrl: z.string().describe("The site property URL"),
+      locationName: z.string().optional().describe("Location name (default: Australia)"),
+      limit: z.number().optional().describe("Max candidates to enrich in one call (default: 1000)")
+    },
+    volumeFluent.keywordVolumeEnrichHandler
   );
 
   registerTool(
