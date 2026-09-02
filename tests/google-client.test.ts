@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { join } from 'path';
 import { homedir } from 'os';
 import { getSearchConsoleClient, startLocalFlow, initiateDeviceFlow, pollForTokens, loadTokensForAccount } from '../src/google/client.js';
 import * as configModule from '../src/common/auth/config.js';
@@ -189,7 +188,7 @@ describe('Google Client', () => {
 
             await getSearchConsoleClient(undefined, accountId);
             expect(MockGoogleAuth).toHaveBeenCalledWith(expect.objectContaining({
-                keyFilename: join(homedir(), 'keys', 'sa.json')
+                keyFilename: homedir() + '/keys/sa.json'
             }));
         });
 
