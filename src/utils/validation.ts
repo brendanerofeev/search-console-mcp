@@ -1,6 +1,6 @@
 import { existsSync, statSync, readFileSync } from 'fs';
 import { resolve } from 'path';
-import { homedir } from 'os';
+import { expandHome } from './paths.js';
 
 export interface ServiceAccountKey {
     type: string;
@@ -40,8 +40,7 @@ export function validateEmail(value: string): string | undefined {
 export function validateKeyFilePath(value: string): string | undefined {
     const sanitized = value.trim().replace(/\0/g, '');
     if (!sanitized) return 'Please provide a path to your JSON key file.';
-    const expandedPath = sanitized.startsWith('~') ? sanitized.replace('~', homedir()) : sanitized;
-    const fullPath = resolve(expandedPath);
+    const fullPath = resolve(expandHome(sanitized));
 
     if (!existsSync(fullPath)) return `File not found: ${fullPath}`;
 
