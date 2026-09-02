@@ -19,9 +19,7 @@ export function printBoxHeader(subLabel: string, color = colors.blue) {
     const totalWidth = 62;
     const content = `${title} | ${subLabel}`;
 
-    // Calculate padding for centering
-    // Each emoji is roughly 2 chars wide in some terminals, but let's assume standard string length for simplicity 
-    // and adjust manually as we did before for perfect alignment.
+    // Rough centering; assumes standard string length (emoji width varies by terminal)
 
     const leftPadStr = " ".repeat(12);
     const rightPadStr = " ".repeat(12);
@@ -37,4 +35,26 @@ export function printStatusLine(label: string, isConnected: boolean) {
     } else {
         console.error(`  ${colors.red}✘${colors.reset} ${label} not connected`);
     }
+}
+
+/**
+ * stderr message helpers shared by setup flows and standalone CLI commands.
+ * Everything goes to stderr — stdout belongs to machine-readable output
+ * (MCP stdio / `run` command results).
+ */
+
+export function log(text: string) {
+    console.error(text);
+}
+
+export function printSuccess(text: string) {
+    log(`${colors.green}✔${colors.reset} ${text}`);
+}
+
+export function printError(text: string) {
+    log(`${colors.red}✘${colors.reset} ${colors.bold}${text}${colors.reset}`);
+}
+
+export function printInfo(text: string) {
+    log(`${colors.blue}ℹ${colors.reset} ${colors.dim}${text}${colors.reset}`);
 }

@@ -1,5 +1,5 @@
-import { readFileSync, writeFileSync, existsSync, unlinkSync } from 'fs';
-import { join } from 'path';
+import { readFileSync, writeFileSync, existsSync, unlinkSync, statSync, accessSync, constants } from 'fs';
+import { join, resolve } from 'path';
 import { homedir } from 'os';
 import { createCipheriv, createDecipheriv, scryptSync, randomBytes } from 'crypto';
 import nodeMachineId from 'node-machine-id';
@@ -10,7 +10,7 @@ const CONFIG_PATH = join(homedir(), '.search-console-mcp-config.enc');
 const LEGACY_TOKEN_PATH = join(homedir(), '.search-console-mcp-tokens.enc');
 const ENCRYPTION_ALGORITHM = 'aes-256-gcm';
 
-export type EngineType = 'google' | 'bing' | 'ga4';
+export type EngineType = 'google' | 'bing' | 'ga4' | 'adsense';
 
 export interface AccountConfig {
     id: string;
@@ -28,12 +28,16 @@ export interface AccountConfig {
     apiKey?: string;
     // GA4 specific
     ga4PropertyId?: string;
+    // AdSense specific
+    adsenseAccountId?: string;
     // Metadata for migration
     isLegacy?: boolean;
 }
 
 export interface AppConfig {
     accounts: Record<string, AccountConfig>;
+    /** UI state (e.g. star-ask shown once) — never contains credentials. */
+    starAskShown?: boolean;
 }
 
 let cachedConfig: AppConfig | null = null;
@@ -200,8 +204,57 @@ export async function updateAccount(account: AccountConfig) {
     await saveConfig(config);
 }
 
+/**
+ * True when the account references a service account key file that no
+ * longer exists on disk. Used by status display (⚠ key file missing)
+ * and as a pre-flight check before client construction.
+ */
+export function isServiceAccountKeyMissing(account: AccountConfig): boolean {
+    if (!account.serviceAccountPath) return false;
+    const resolved = resolve(String(account.serviceAccountPath).replace(/^~(?=$|\/)/, homedir()));
+    try {
+        if (!statSync(resolved).isFile()) return true;
+        // statSync doesn't test effective read access
+        accessSync(resolved, constants.R_OK);
+        return false;
+    } catch {
+        return true;
+    }
+}
+
+/**
+ * Throws a resolution-style error if the account's SA key file is gone,
+ * so callers get actionable guidance instead of a raw ENOENT from deep
+ * inside google-auth-library.
+ */
+export function assertServiceAccountKeyReadable(account: AccountConfig): void {
+    if (!isServiceAccountKeyMissing(account)) return;
+    // Anchored, like isServiceAccountKeyMissing above: an unanchored '~' replace
+    // corrupts any path with a tilde inside it, which on Windows is every 8.3
+    // short name (C:\Users\BRENDA~1\...).
+    const resolved = resolve(String(account.serviceAccountPath).replace(/^~(?=$|\/)/, homedir()));
+    const err: any = new Error(
+        `Service account key file no longer exists at "${resolved}". Re-run setup to provide a new key.`
+    );
+    err.code = 'KEY_FILE_MISSING';
+    err.resolution = { command: `search-console-mcp setup --engine=${account.engine}` };
+    throw err;
+}
+
 export async function removeAccount(accountId: string) {
     const config = await loadConfig();
     delete config.accounts[accountId];
     await saveConfig(config);
+}
+
+/**
+ * Resolve an account by exact ID first, then by case-insensitive alias.
+ * Shared by the accounts CLI and logout so identifier semantics are
+ * consistent across commands.
+ */
+export function findAccountByAliasOrId(accounts: Record<string, AccountConfig>, identifier: string): AccountConfig | undefined {
+    if (accounts[identifier]) return accounts[identifier];
+    return Object.values(accounts).find(
+        a => a.alias?.toLowerCase() === identifier.toLowerCase() || a.id === identifier
+    );
 }

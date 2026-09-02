@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import * as fs from 'fs';
-import { createInterface } from 'readline';
+import { ScriptedDriver } from './helpers/scripted-driver.js';
 
 // Define mocks hoisted
 const { mockGClient, mockGoogleAuth, mockOAuth2, mockRl, MockBingClient } = vi.hoisted(() => {
@@ -39,6 +39,7 @@ vi.mock('fs', () => ({
     statSync: vi.fn(),
     readFileSync: vi.fn(),
     writeFileSync: vi.fn(),
+    chmodSync: vi.fn(),
 }));
 
 vi.mock('readline', () => ({
@@ -46,8 +47,11 @@ vi.mock('readline', () => ({
 }));
 
 vi.mock('../src/common/auth/config.js', () => ({
+    assertServiceAccountKeyReadable: vi.fn(),
+    isServiceAccountKeyMissing: vi.fn(() => false),
     loadConfig: vi.fn(),
     updateAccount: vi.fn(),
+    saveConfig: vi.fn(),
     saveTokensForAccount: vi.fn(),
 }));
 
@@ -85,28 +89,27 @@ describe('Setup Full', () => {
     let setupModule: any;
     let configModule: any;
     let googleClient: any;
-    let mockAnswers: string[] = [];
+    let promptsModule: any;
+    let driver: ScriptedDriver;
     const originalEnv = { ...process.env };
     const originalArgv = process.argv;
 
     beforeEach(async () => {
         vi.resetModules();
         vi.clearAllMocks();
-        mockAnswers = [];
         delete process.env.BING_API_KEY;
-
-        mockRl.question.mockImplementation((q: string, cb: (a: string) => void) => {
-            const answer = mockAnswers.shift() || '';
-            cb(answer);
-        });
 
         mockGClient.sites.list.mockResolvedValue({ data: { siteEntry: [] } });
 
         setupModule = await import('../src/setup.js');
         configModule = await import('../src/common/auth/config.js');
         googleClient = await import('../src/google/client.js');
+        promptsModule = await import('../src/utils/prompts.js');
 
         vi.mocked(configModule.loadConfig).mockResolvedValue({ accounts: {} });
+
+        driver = new ScriptedDriver();
+        promptsModule.setPromptDriver(driver);
 
         vi.spyOn(process, 'exit').mockImplementation((() => { throw new Error('Process.exit'); }) as any);
     });
@@ -200,7 +203,8 @@ describe('Setup Full', () => {
     describe('Interactive Flows', () => {
         it('should handle Bing setup flow', async () => {
             process.argv = ['node', 'setup.ts', '--engine=bing'];
-            mockAnswers = ['my-api-key', '', 'y'];
+            driver.textResponses = ['my-api-key'];
+            driver.confirmResponses = [false]; // star ask
 
             await setupModule.main();
 
@@ -211,9 +215,10 @@ describe('Setup Full', () => {
         });
 
         it('should handle Google Login flow', async () => {
-            process.argv = ['node', 'setup.ts'];
-            // answers: engine, auth method, indexing? n, writes? n, account, alias, more?
-            mockAnswers = ['1', '1', 'n', 'n', '1', 'my-google', 'n'];
+            process.argv = ['node', 'setup.ts', '--engine=google'];
+            driver.selectResponses = ['oauth'];
+            driver.confirmResponses = [false, false, false]; // indexing scope, write scope, star ask
+            driver.textResponses = ['my-google'];
 
             vi.mocked(googleClient.startLocalFlow).mockResolvedValue({ access_token: 'token' });
             vi.mocked(googleClient.getUserEmail).mockResolvedValue('user@test.com');
@@ -248,8 +253,10 @@ describe('Setup Full', () => {
         });
 
         it('should request the Search Console write scope when accepted', async () => {
-            process.argv = ['node', 'setup.ts'];
-            mockAnswers = ['1', '1', 'n', 'y', '1', 'my-google-writes', 'n'];
+            process.argv = ['node', 'setup.ts', '--engine=google'];
+            driver.selectResponses = ['oauth'];
+            driver.confirmResponses = [false, true, false]; // indexing scope, write scope, star ask
+            driver.textResponses = ['my-google-writes'];
 
             vi.mocked(googleClient.startLocalFlow).mockResolvedValue({ access_token: 'token' });
             vi.mocked(googleClient.getUserEmail).mockResolvedValue('user@test.com');
@@ -275,8 +282,10 @@ describe('Setup Full', () => {
         });
 
         it('should handle Google Login flow with Indexing scope', async () => {
-            process.argv = ['node', 'setup.ts'];
-            mockAnswers = ['1', '1', 'y', 'n', '1', 'my-google-indexing', 'n'];
+            process.argv = ['node', 'setup.ts', '--engine=google'];
+            driver.selectResponses = ['oauth'];
+            driver.confirmResponses = [true, false, false]; // indexing scope, write scope, star ask
+            driver.textResponses = ['my-google-indexing'];
 
             vi.mocked(googleClient.startLocalFlow).mockResolvedValue({ access_token: 'token' });
             vi.mocked(googleClient.getUserEmail).mockResolvedValue('user@test.com');
@@ -300,14 +309,20 @@ describe('Setup Full', () => {
         });
 
         it('should handle Google Service Account flow', async () => {
-            process.argv = ['node', 'setup.ts'];
-            mockAnswers = ['1', '2', 'key.json', '', 'sa-alias', 'n'];
+            process.argv = ['node', 'setup.ts', '--engine=google'];
+            driver.selectResponses = ['sa']; // auth method
+            driver.textResponses = ['key.json', '', 'sa-alias']; // key path, continue, alias
+            driver.confirmResponses = [false]; // star ask
 
             vi.mocked(fs.existsSync).mockReturnValue(true);
             vi.mocked(fs.statSync).mockReturnValue({ isFile: () => true } as any);
             vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({
                 type: 'service_account',
                 project_id: 'p',
+                private_key_id: 'pkid',
+                client_id: 'cid',
+                auth_uri: 'https://auth',
+                token_uri: 'https://token',
                 client_email: 'sa@test.com',
                 private_key: 'pk'
             }));
@@ -323,7 +338,7 @@ describe('Setup Full', () => {
 
         it('should handle PageSpeed setup flow', async () => {
             process.argv = ['node', 'setup.ts', '--engine=pagespeed'];
-            mockAnswers = ['my-pagespeed-key', ''];
+            driver.textResponses = ['my-pagespeed-key'];
 
             vi.mocked(fs.existsSync).mockReturnValue(true);
             vi.mocked(fs.readFileSync).mockReturnValue('PAGESPEED_API_KEY=old-key');
@@ -333,15 +348,24 @@ describe('Setup Full', () => {
             expect(fs.writeFileSync).toHaveBeenCalledWith(
                 expect.stringContaining('.env'),
                 expect.stringContaining('PAGESPEED_API_KEY=my-pagespeed-key'),
-                'utf8'
+                { encoding: 'utf8', mode: 0o600 }
             );
+            expect(fs.chmodSync).toHaveBeenCalledWith(expect.stringContaining('.env'), 0o600);
         });
 
         it('should handle main menu exit', async () => {
             process.argv = ['node', 'setup.ts'];
-            mockAnswers = ['5'];
+            driver.selectResponses = ['__exit'];
+
             await setupModule.main();
-            expect(mockRl.close).toHaveBeenCalled();
+
+            expect(driver.received.some(r => r.startsWith('select:'))).toBe(true);
+        });
+
+        it('should error on unknown --engine flag', async () => {
+            process.argv = ['node', 'setup.ts', '--engine=adsens'];
+
+            await expect(setupModule.main()).rejects.toThrow('Process.exit');
         });
     });
 });

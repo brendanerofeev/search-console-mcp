@@ -40,7 +40,8 @@ describe('analytics_query filtering', () => {
             endDate: '2026-08-15',
             dimensions: ['query'],
             filters: [{ dimension: 'query', operator: 'contains', expression: 'subbie' }],
-            limit: 1,
+            // inbound `limit` is normalised to the canonical outbound `rowLimit`
+            rowLimit: 1,
         });
         expect(bingAnalytics.getQueryStats).toHaveBeenCalledWith(
             'sc-domain:example.com',
@@ -52,7 +53,7 @@ describe('analytics_query filtering', () => {
         expect(body.bing).toEqual([{ Query: 'subbie support', Impressions: 10 }]);
     });
 
-    it('keeps rowLimit as a backwards-compatible alias', async () => {
+    it('forwards rowLimit through as the canonical key', async () => {
         await analyticsQueryHandler({
             siteUrl: 'sc-domain:example.com',
             rowLimit: 7,
@@ -60,7 +61,7 @@ describe('analytics_query filtering', () => {
         });
 
         expect(googleAnalytics.queryAnalytics).toHaveBeenCalledWith(
-            expect.objectContaining({ limit: 7 }),
+            expect.objectContaining({ rowLimit: 7 }),
         );
     });
 });

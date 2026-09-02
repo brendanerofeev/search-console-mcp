@@ -1,4 +1,5 @@
-import { loadConfig, removeAccount, updateAccount } from './common/auth/config.js';
+import { findAccountByAliasOrId, loadConfig, removeAccount, updateAccount } from './common/auth/config.js';
+import { purgeStoredTokens } from './google/client.js';
 
 function parseFlags(args: string[]): Record<string, string> {
     const flags: Record<string, string> = {};
@@ -11,18 +12,8 @@ function parseFlags(args: string[]): Record<string, string> {
     return flags;
 }
 
-function findAccountByAliasOrId(accounts: Record<string, any>, identifier: string) {
-    // Try exact ID match first
-    if (accounts[identifier]) return accounts[identifier];
-    // Then try alias match (case-insensitive)
-    return Object.values(accounts).find(
-        (a: any) => a.alias?.toLowerCase() === identifier.toLowerCase() || a.id === identifier
-    );
-}
-
 export async function main(args: string[]) {
-    const subcommand = args[0] || 'list';
-    const flags = parseFlags(args.slice(1));
+    const subcommand = args[0] || 'list';    const flags = parseFlags(args.slice(1));
     // Positional args (non-flag args after the subcommand)
     const positional = args.slice(1).filter(a => !a.startsWith('--'));
 
@@ -39,7 +30,8 @@ export async function main(args: string[]) {
                         command: "search-console-mcp setup",
                         google: "search-console-mcp setup --engine=google",
                         bing: "search-console-mcp setup --engine=bing",
-                        ga4: "search-console-mcp setup --engine=ga4"
+                        ga4: "search-console-mcp setup --engine=ga4",
+                        adsense: "search-console-mcp setup --engine=adsense"
                     },
                     setup_instructions: {
                         google: [
@@ -56,6 +48,11 @@ export async function main(args: string[]) {
                             "Run: search-console-mcp setup --engine=ga4",
                             "Choose Service Account (OAuth coming soon)",
                             "Add the service account email to your GA4 property"
+                        ],
+                        adsense: [
+                            "Run: search-console-mcp setup --engine=adsense",
+                            "Authorize with your Google account (read-only AdSense scope)",
+                            "Select the publisher account to connect"
                         ]
                     }
                 }, null, 2));
@@ -66,7 +63,7 @@ export async function main(args: string[]) {
 
             for (const a of accounts) {
                 const alias = a.alias || '[Unnamed]';
-                const engine = a.engine === 'google' ? 'Google' : a.engine === 'bing' ? 'Bing' : 'GA4';
+                const engine = a.engine === 'google' ? 'Google' : a.engine === 'bing' ? 'Bing' : a.engine === 'adsense' ? 'AdSense' : 'GA4';
 
                 if (!a.websites || a.websites.length === 0) {
                     siteRows.push({
@@ -128,6 +125,9 @@ export async function main(args: string[]) {
                     }, null, 2));
                     return;
                 }
+                // Purge stored OAuth tokens (keychain) before dropping the
+                // config entry, so no credentials are left orphaned.
+                await purgeStoredTokens(account);
                 await removeAccount(account.id);
                 console.log(JSON.stringify({
                     success: true,

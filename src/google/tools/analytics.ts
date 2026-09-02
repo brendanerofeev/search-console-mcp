@@ -24,9 +24,8 @@ function generateCacheKey(options: AnalyticsOptions): string {
     );
   }
 
-  // We need a stable JSON string for the cache key.
-  // Instead of the broken JSON.stringify(clone, keys) which wipes nested objects,
-  // we manually sort the top-level keys.
+  // Stable cache key: JSON.stringify with a key replacer drops nested objects,
+  // so top-level keys are sorted manually instead.
   const sorted: any = {};
   Object.keys(clone).sort().forEach(key => {
     sorted[key] = (clone as any)[key];
@@ -59,6 +58,11 @@ export interface AnalyticsOptions {
   /** Data state: 'final' (stable data only) or 'all' (includes fresh, volatile data). Defaults to 'final'. */
   dataState?: 'final' | 'all';
   /** Maximum number of rows to return. Max 25,000. */
+  rowLimit?: number;
+  /**
+   * Alias for {@link rowLimit}. Retained for backward compatibility with
+   * internal callers. Prefer `rowLimit` going forward.
+   */
   limit?: number;
   /** Zero-based index of the first row to return. */
   startRow?: number;
@@ -195,7 +199,7 @@ export async function queryAnalytics(options: AnalyticsOptions): Promise<searchc
         aggregationType: options.aggregationType || 'auto',
         dataState: options.dataState || 'final',
 
-        rowLimit: Math.min(options.limit || 1000, 25000),
+        rowLimit: Math.min(options.rowLimit ?? options.limit ?? 1000, 25000),
       };
 
       // Add pagination support
@@ -204,9 +208,8 @@ export async function queryAnalytics(options: AnalyticsOptions): Promise<searchc
       }
 
       if (options.filters && options.filters.length > 0) {
-        // We use separate dimensionFilterGroups for each filter to ensure they are joined by AND.
-        // GSC API joins multiple filters within the same group by OR if they share the same dimension.
-        // By putting them in separate groups, we guarantee strict AND behavior for all filters.
+        // Separate dimensionFilterGroups per filter so they are joined by AND
+        // (multiple filters on the same dimension inside one group would join by OR)
         requestBody.dimensionFilterGroups = options.filters.map(f => ({
           filters: [{
             dimension: f.dimension,

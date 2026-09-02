@@ -1,4 +1,5 @@
 import * as googleAnalytics from "../../google/tools/analytics.js";
+import type { AnalyticsOptions } from "../../google/tools/analytics.js";
 import * as bingAnalytics from "../../bing/tools/analytics.js";
 import * as ga4Analytics from "../../ga4/tools/analytics.js";
 import * as ga4Realtime from "../../ga4/tools/realtime.js";
@@ -31,13 +32,14 @@ export async function analyticsQueryHandler(args: {
     filters.push({ dimension: "query", operator: "contains", expression: search });
   }
 
-  const queryParams = {
+  const queryParams: AnalyticsOptions = {
     siteUrl: args.siteUrl,
     startDate: args.startDate,
     endDate: args.endDate,
     dimensions,
     filters: filters.length ? filters : undefined,
-    limit,
+    // rowLimit is the canonical key; `limit` is only kept as an inbound alias.
+    rowLimit: limit,
   };
 
   const queryBing = async () => {

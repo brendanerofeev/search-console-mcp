@@ -2,9 +2,9 @@
 
 # 🔍 Search Console MCP
 
-**Google Search Console + Bing Webmaster Tools + GA4 — in one context window.**
+**Google Search Console + Bing Webmaster Tools + GA4 + AdSense — in one context window.**
 
-Stop exporting CSVs. Start asking your AI agent questions.
+Stop exporting CSVs. Start asking your AI agent questions about your site's traffic, rankings, and revenue.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Tests](https://github.com/saurabhsharma2u/search-console-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/saurabhsharma2u/search-console-mcp/actions/workflows/ci.yml)
@@ -20,26 +20,58 @@ Stop exporting CSVs. Start asking your AI agent questions.
 
 ---
 
-## ⚡ What's New in v2.0.2
+## ⚡ What's New in v2.1.2
+
+* 🤖 **GenAI Query Insights (`genai_query_insights`)**: Surfaces likely generative-AI / AI-Mode / conversational "fanout" queries across Google and Bing. This is **custom heuristic logic** — no official API is provided by Google or Bing for GenAI citation data, so it flags prompt verbs, follow-ups, acknowledgements, and conversational phrasing on the regular query data both engines already return. See [docs →](https://searchconsolemcp.saurabh.app/tools/seo-intelligence)
+* 🪲 **`analytics_query` fix**: `rowLimit` is now honored instead of being silently ignored (previously always returned up to 1000 rows); `limit` remains as a backward-compatible alias.
+
+<details>
+<summary><strong>What's New in v2.1.0</strong></summary>
+
+* 💰 **Google AdSense Integration**: Earnings reports, payments and account alerts via `setup --engine=adsense`. Enabling AdSense requires you to approve a separate `adsense.readonly` OAuth scope; your existing GSC, Bing, and GA4 configuration remains unchanged until you opt in.
+* 🔐 **OAuth-only AdSense auth**: The AdSense Management API supports user OAuth only — setup now validates access live and rejects unsupported service-account configs with actionable guidance. Multi-account users get explicit publisher-account selection with full pagination (>100 accounts).
+* 📊 **`adsense_report` upgrades**: Custom `startDate`/`endDate` now override preset `dateRange`s, plus a new `orderBy` parameter (`-ESTIMATED_EARNINGS`) for sorted revenue reports.
+* 🧪 **End-to-end MCP test suite**: The built server binary is now tested over stdio and SSE exactly like an MCP host would drive it — handshake, tool schemas, error envelopes, and multi-account resource behavior (11 e2e tests wired into CI).
+
+</details>
+
+<details>
+<summary><strong>What's New in v2.0.x</strong></summary>
+
+* 💰 **Google AdSense Integration**: Earnings reports, payments and account alerts via `setup --engine=adsense`. Enabling AdSense requires you to approve a separate `adsense.readonly` OAuth scope; your existing GSC, Bing, and GA4 configuration remains unchanged until you opt in.
+* 🔐 **OAuth-only AdSense auth**: The AdSense Management API supports user OAuth only — setup now validates access live and rejects unsupported service-account configs with actionable guidance. Multi-account users get explicit publisher-account selection with full pagination (>100 accounts).
+* 📊 **`adsense_report` upgrades**: Custom `startDate`/`endDate` now override preset `dateRange`s, plus a new `orderBy` parameter (`-ESTIMATED_EARNINGS`) for sorted revenue reports.
+* 🧪 **End-to-end MCP test suite**: The built server binary is now tested over stdio and SSE exactly like an MCP host would drive it — handshake, tool schemas, error envelopes, and multi-account resource behavior (11 e2e tests wired into CI).
+
+<details>
+<summary><strong>What's New in v2.0.x</strong></summary>
 
 * 📦 **MCPB One-Click Bundle Support (`.mcpb`)**: Drag and drop bundle installation for Claude Desktop.
 * ⚡ **Parallel Fetch Engine (`engine: "all"`)**: Multi-engine queries fetch Google, Bing, and GA4 concurrently with **50%+ lower latency**.
 * 🔄 **100% Backward Compatibility**: All ~96 legacy tool names continue to work seamlessly via our fallback router. [Read Backward Compatibility Guide →](https://searchconsolemcp.saurabh.app/concepts/backward-compatibility)
 
+</details>
+
 ---
 
 ## Why this exists
 
-SEO data lives in three different silos. Answering one question — *"did my traffic drop because of a ranking loss or a UX issue?"* — usually means logging into three dashboards, exporting three CSVs, and doing VLOOKUPs by hand.
+Site data lives in four different silos. Answering one question —
+*"did my ad revenue drop because of a traffic dip or a lower RPM?"*
+— usually means logging into four dashboards, exporting four CSVs,
+and doing VLOOKUPs by hand.
 
-Search Console MCP puts **GSC, Bing, and GA4** behind one set of tools your AI agent can call directly, and does the SEO math (cannibalization, anomaly detection, opportunity scoring) *before* the data ever reaches your context window — so your agent gets insights, not spreadsheets.
+Search Console MCP puts **GSC, Bing, GA4, and AdSense** behind one
+set of tools your AI agent can call directly, and does the analysis
+(cannibalization, anomaly detection, revenue attribution) *before*
+the data ever reaches your context window.
 
-| | Before | After |
-|---|---|---|
-| **Data** | 3 dashboards, manual exports | 1 unified context |
-| **Analysis** | Manual VLOOKUPs & pivot tables | Deterministic SEO math, done server-side |
-| **Accounts** | Constant re-login | 20+ accounts, auto-resolved per site |
-| **Insight** | Raw rows, agent guesses | Curated signals (opportunity scores, anomalies) |
+|              | Before                         | After                                           |
+| ------------ | ------------------------------ | ------------------------------------------------ |
+| **Data**     | 4 dashboards, manual exports   | 1 unified context                               |
+| **Analysis** | Manual VLOOKUPs & pivot tables | Deterministic SEO + revenue math, server-side    |
+| **Accounts** | Constant re-login              | 20+ accounts, auto-resolved per site            |
+| **Insight**  | Raw rows, agent guesses        | Curated signals (opportunity scores, anomalies)  |
 
 ---
 
@@ -98,6 +130,7 @@ Paste these straight into your agent:
 | **Google Search Console** | Service Account | Set `GOOGLE_APPLICATION_CREDENTIALS` — [details](#service-account-advanced) |
 | **Bing Webmaster Tools** | API Key | `export BING_API_KEY="..."` — [get a key](https://www.bing.com/webmasters/settings/api) |
 | **Google Analytics 4** | Service Account | `npx search-console-mcp setup --engine=ga4` |
+| **Google AdSense** | OAuth (read-only) | `npx search-console-mcp setup --engine=adsense` — [headless servers](#headless-servers) |
 
 Manage everything from the CLI:
 
@@ -108,6 +141,23 @@ npx search-console-mcp accounts remove --account=you@company.com
 ```
 
 When your agent queries a site, the server auto-resolves which account owns it — no manual switching. [Multi-account docs →](https://searchconsolemcp.saurabh.app/getting-started/multi-account)
+
+<details>
+<summary id="headless-servers">Headless servers (Docker, CI, VPS)</summary>
+
+AdSense cannot use service accounts, and config files are machine-encrypted — so authorize once on any machine with a browser and transfer the grant:
+
+```bash
+# 1. On your laptop (after setup --engine=adsense):
+npx search-console-mcp adsense-export
+
+# 2. On the server (prints a ready-to-run command on step 1):
+npx search-console-mcp adsense-import --token='...' --publisher-id='accounts/pub-...'
+```
+
+The token is stored encrypted on the server and auto-refreshes — no browser needed again. Setup over SSH also works directly: when no browser is detected, `setup` prints the authorization URL plus `ssh -L 3000:localhost:3000` port-forward instructions instead of failing.
+
+</details>
 
 ---
 
@@ -165,6 +215,17 @@ Search Console MCP v2.0 features **7 Fluent Domain Tools** that handle all SEO, 
 | `seo_keywords_research`| `keywords`, `type: "stats" \| "related" \| "traffic"` | Keyword volumes and related keyword stats |
 | `site_health_check` | `siteUrl`, `level: "summary" \| "full" \| "crawl_issues"` | One-shot site performance & technical audit |
 | `compare_engines` | `siteUrl` | Side-by-side Google vs Bing performance breakdown |
+| `genai_query_insights` | `siteUrl`, `days`, `engine: "google" \| "bing" \| "all"`, `includePages`, `minImpressions` | Flags likely generative-AI / conversational queries (custom heuristic, no official API) |
+
+### Google AdSense Tools
+
+| Tool | Parameters | Description |
+|---|---|---|
+| `adsense_accounts` | `mode: "configured" \| "discover"`, `accountId` | Lists configured or discoverable AdSense publisher accounts |
+| `adsense_report` | `dateRange`, `startDate`, `endDate`, `dimensions`, `metrics`, `orderBy`, `rowLimit`, `accountId` | Earnings, impressions, clicks, CTR & RPM with dimension breakdowns. Custom dates override `dateRange`. |
+| `adsense_payments_alerts` | `accountId` | Outstanding payments and account alerts (policy issues, payment holds) |
+
+> **Note:** `accountId` refers to the configured profile ID (e.g. `adsense_2`, as shown by `accounts_manage`), not a publisher resource name like `accounts/pub-123`.
 
 <details>
 <summary><strong>Backward Compatibility Notice (96+ Legacy Tools)</strong></summary>
