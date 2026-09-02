@@ -195,6 +195,14 @@ describe("Fluent Tools 100% Coverage Suite", () => {
     await expect(analyticsAdvancedHandler({ propertyId: "123", metricType: "invalid" as any })).rejects.toThrow();
   });
 
+  it("analytics.ts: rowLimit is forwarded to the Google layer so it is not silently capped", async () => {
+    const { queryAnalytics } = await import("../src/google/tools/analytics.js");
+    const mockQueryAnalytics = vi.mocked(queryAnalytics);
+
+    await analyticsQueryHandler({ siteUrl: "https://example.com/", engine: "google", rowLimit: 5000 });
+    expect(mockQueryAnalytics).toHaveBeenCalledWith(expect.objectContaining({ rowLimit: 5000 }));
+  });
+
   it("inspection.ts: single url, batch urls, cwvOnly, strategy", async () => {
     await inspectionInspectHandler({ siteUrl: "https://example.com/", urls: ["https://example.com/p1"] });
     await inspectionInspectHandler({ siteUrl: "https://example.com/", urls: ["https://example.com/p1", "https://example.com/p2"] });

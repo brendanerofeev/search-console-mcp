@@ -1,6 +1,6 @@
 import { BetaAnalyticsDataClient } from '@google-analytics/data';
 import { google } from 'googleapis';
-import { AccountConfig, loadConfig } from '../common/auth/config.js';
+import { AccountConfig, loadConfig, assertServiceAccountKeyReadable } from '../common/auth/config.js';
 import { resolveAccount } from '../common/auth/resolver.js';
 import { loadTokensForAccount, saveTokensForAccount, DEFAULT_CLIENT_ID, DEFAULT_CLIENT_SECRET } from '../google/client.js';
 
@@ -64,12 +64,11 @@ export async function getGA4Client(propertyId?: string, accountId?: string): Pro
             // Try to find by propertyId property
             account = accounts.find(a => a.ga4PropertyId === propertyId);
 
-            // If not found, try generic resolution (maybe property ID is in websites list)
             if (!account) {
                 try {
                     account = await resolveAccount(propertyId, 'ga4');
                 } catch (e) {
-                    // Ignore resolution error for now
+                    // Ignore
                 }
             }
         }
@@ -91,9 +90,6 @@ export async function getGA4Client(propertyId?: string, accountId?: string): Pro
         }
     }
 
-    // Determine Property ID to use
-    // If account has a specific property ID, use it.
-    // If not, and propertyId argument was passed, use that (assuming account has access).
     const targetPropertyId = propertyId || account.ga4PropertyId;
 
     if (!targetPropertyId) {
@@ -142,6 +138,7 @@ export async function getGA4Client(propertyId?: string, accountId?: string): Pro
 
     // 3. Support Service Account Path
     if (account.serviceAccountPath) {
+        assertServiceAccountKeyReadable(account);
         client = new BetaAnalyticsDataClient({
             keyFilename: account.serviceAccountPath
         });

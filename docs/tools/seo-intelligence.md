@@ -29,6 +29,13 @@ Keyword statistics and related keyword research via Bing & GSC data.
 ### `schema_validate`
 Validates JSON-LD structured data and schema markup on target web pages.
 
+### `genai_query_insights`
+Detects likely generative-AI / AI-Mode / conversational "fanout" queries across Google and Bing performance data.
+*   **Context:** This is **custom heuristic logic** computed locally — no official API is provided by Google or Bing for generative-AI citation data (as of Aug 2026). Google's dedicated Gen AI report is UI-only (its Search Analytics API rejects AI `searchAppearance` values), and Bing's AI Performance report is not yet exposed via its Webmaster API. This tool works around that gap by matching heuristic patterns — prompt verbs (`write`, `generate`, `summarize`, `act as`), follow-ups (`continue`, `show me more`), acknowledgements, question-led and long conversational phrasing — on the regular query-level data both engines already return.
+*   **Parameters:** `siteUrl`, `days` (default 28), `engine` (`google|bing|all`), `includePages` (enrich matched queries with cited/mapped pages), `minImpressions`.
+*   **Caveat (always returned in output):** matches are heuristic and **an undercount** — search engines anonymize rare/conversational queries, and this is not an official report.
+*   **Best for:** *"Which queries look like they're coming from AI Mode or Copilot?"*
+
 ---
 
 ## 🔄 Backward Compatibility Note
