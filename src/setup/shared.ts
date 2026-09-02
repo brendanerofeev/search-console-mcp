@@ -193,7 +193,7 @@ function persistPastedKey(key: ServiceAccountKey): string {
 
 export async function testConnection(keyPath: string): Promise<boolean> {
     try {
-        process.env.GOOGLE_APPLICATION_CREDENTIALS = resolve(keyPath.replace('~', homedir()));
+        process.env.GOOGLE_APPLICATION_CREDENTIALS = resolve(keyPath.replace(/^~(?=$|\/)/, homedir()));
         const { google } = await import('googleapis');
         const auth = new google.auth.GoogleAuth({
             scopes: ['https://www.googleapis.com/auth/webmasters.readonly']

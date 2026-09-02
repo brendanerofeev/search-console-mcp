@@ -229,7 +229,7 @@ export function isServiceAccountKeyMissing(account: AccountConfig): boolean {
  */
 export function assertServiceAccountKeyReadable(account: AccountConfig): void {
     if (!isServiceAccountKeyMissing(account)) return;
-    const resolved = resolve(String(account.serviceAccountPath).replace('~', homedir()));
+    const resolved = resolve(String(account.serviceAccountPath).replace(/^~(?=$|\/)/, homedir()));
     const err: any = new Error(
         `Service account key file no longer exists at "${resolved}". Re-run setup to provide a new key.`
     );
