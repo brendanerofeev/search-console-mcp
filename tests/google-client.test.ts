@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { homedir } from 'os';
 import { getSearchConsoleClient, startLocalFlow, initiateDeviceFlow, pollForTokens, loadTokensForAccount } from '../src/google/client.js';
 import * as configModule from '../src/common/auth/config.js';
 import * as resolverModule from '../src/common/auth/resolver.js';
@@ -169,6 +170,25 @@ describe('Google Client', () => {
             await getSearchConsoleClient(undefined, accountId);
             expect(MockGoogleAuth).toHaveBeenCalledWith(expect.objectContaining({
                 keyFilename: '/path/to/sa.json'
+            }));
+        });
+
+        it('should expand a leading tilde in the service account path for keyFilename', async () => {
+            const accountId = 'google_sa_tilde';
+            vi.mocked(configModule.loadConfig).mockResolvedValue({
+                accounts: {
+                    [accountId]: {
+                        id: accountId,
+                        engine: 'google',
+                        alias: 'sa-tilde',
+                        serviceAccountPath: '~/keys/sa.json'
+                    }
+                }
+            });
+
+            await getSearchConsoleClient(undefined, accountId);
+            expect(MockGoogleAuth).toHaveBeenCalledWith(expect.objectContaining({
+                keyFilename: homedir() + '/keys/sa.json'
             }));
         });
 

@@ -11,6 +11,7 @@ import {
     ServiceAccountKey,
 } from '../utils/validation.js';
 import { loadConfig, saveConfig, isServiceAccountKeyMissing } from '../common/auth/config.js';
+import { expandHome } from '../utils/paths.js';
 
 // stderr message helpers now live in utils/ui.ts; re-exported here so
 // existing setup flows keep their import paths.
@@ -131,7 +132,7 @@ export function validateKeyFile(path: string): ServiceAccountKey | null {
         printError(pathError);
         return null;
     }
-    const expandedPath = resolve(path.trim().replace(/\0/g, '').replace(/^~(?=$|\/)/, homedir()));
+    const expandedPath = resolve(expandHome(path.trim().replace(/\0/g, '')));
     const { key, error } = parseServiceAccountKey(expandedPath);
     if (error || !key) {
         printError(error || 'Invalid service account key.');
@@ -162,7 +163,7 @@ export async function acquireServiceAccountKey(): Promise<{ key: ServiceAccountK
             const keyPath = await prompts.text('Enter the path to your JSON key file:', {
                 validate: validateKeyFilePath,
             });
-            const fullPath = resolve(keyPath.trim().replace(/\0/g, '').replace(/^~(?=$|\/)/, homedir()));
+            const fullPath = resolve(expandHome(keyPath.trim().replace(/\0/g, '')));
             const { key, error } = parseServiceAccountKey(fullPath);
             if (error || !key) {
                 printError(error || 'Invalid service account key.');
@@ -193,7 +194,7 @@ function persistPastedKey(key: ServiceAccountKey): string {
 
 export async function testConnection(keyPath: string): Promise<boolean> {
     try {
-        process.env.GOOGLE_APPLICATION_CREDENTIALS = resolve(keyPath.replace('~', homedir()));
+        process.env.GOOGLE_APPLICATION_CREDENTIALS = resolve(expandHome(keyPath));
         const { google } = await import('googleapis');
         const auth = new google.auth.GoogleAuth({
             scopes: ['https://www.googleapis.com/auth/webmasters.readonly']
