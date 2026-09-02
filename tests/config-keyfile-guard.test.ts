@@ -70,6 +70,37 @@ describe('service account key file guards', () => {
         expect(err.message).toContain(p);
     });
 
+    it('assert leaves a tilde inside the path alone', () => {
+        // Windows 8.3 short names (C:\Users\BRENDA~1\...) put a tilde in the
+        // middle of an otherwise ordinary absolute path. An unanchored replace
+        // rewrites that one and produces a nonsense path in the error message.
+        const p = join(tmpdir(), 'BRENDA~1', `scmcp-nonexistent-${Date.now()}.json`);
+        const err = (() => {
+            try {
+                assertServiceAccountKeyReadable(makeAccount({ engine: 'google', serviceAccountPath: p }));
+                return null as any;
+            } catch (e) {
+                return e as any;
+            }
+        })();
+        expect(err).not.toBeNull();
+        expect(err.message).toContain(p);
+        expect(err.message).not.toContain(homedir() + '1');
+    });
+
+    it('assert still expands a leading tilde', () => {
+        const err = (() => {
+            try {
+                assertServiceAccountKeyReadable(makeAccount({ engine: 'google', serviceAccountPath: '~/scmcp-definitely-not-here.json' }));
+                return null as any;
+            } catch (e) {
+                return e as any;
+            }
+        })();
+        expect(err).not.toBeNull();
+        expect(err.message).toContain(join(homedir(), 'scmcp-definitely-not-here.json'));
+    });
+
     it('assert does not throw when file exists', () => {
         dir = mkdtempSync(join(tmpdir(), 'scmcp-key-ok-'));
         const p = join(dir, 'key.json');

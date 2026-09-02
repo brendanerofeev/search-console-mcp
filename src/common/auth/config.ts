@@ -3,6 +3,7 @@ import { join, resolve } from 'path';
 import { homedir } from 'os';
 import { createCipheriv, createDecipheriv, scryptSync, randomBytes } from 'crypto';
 import nodeMachineId from 'node-machine-id';
+import { expandHome } from '../../utils/paths.js';
 
 const { machineIdSync } = nodeMachineId;
 
@@ -211,7 +212,7 @@ export async function updateAccount(account: AccountConfig) {
  */
 export function isServiceAccountKeyMissing(account: AccountConfig): boolean {
     if (!account.serviceAccountPath) return false;
-    const resolved = resolve(String(account.serviceAccountPath).replace(/^~(?=$|\/)/, homedir()));
+    const resolved = resolve(expandHome(String(account.serviceAccountPath)));
     try {
         if (!statSync(resolved).isFile()) return true;
         // statSync doesn't test effective read access
@@ -229,7 +230,7 @@ export function isServiceAccountKeyMissing(account: AccountConfig): boolean {
  */
 export function assertServiceAccountKeyReadable(account: AccountConfig): void {
     if (!isServiceAccountKeyMissing(account)) return;
-    const resolved = resolve(String(account.serviceAccountPath).replace('~', homedir()));
+    const resolved = resolve(expandHome(String(account.serviceAccountPath)));
     const err: any = new Error(
         `Service account key file no longer exists at "${resolved}". Re-run setup to provide a new key.`
     );
