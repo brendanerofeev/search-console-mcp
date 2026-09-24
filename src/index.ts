@@ -77,6 +77,7 @@ import * as profilesFluent from "./tools/fluent/profiles.js";
 import * as trackingFluent from "./tools/fluent/tracking.js";
 import * as keywordsFluent from "./tools/fluent/keywords.js";
 import * as businessFluent from "./tools/fluent/business.js";
+import * as businessProfileSyncFluent from "./tools/fluent/business-profile-sync.js";
 import * as reportFluent from "./tools/fluent/report.js";
 import * as auditFluent from "./tools/fluent/audit.js";
 import * as backfillFluent from "./tools/fluent/backfill.js";
@@ -486,6 +487,15 @@ export function createMcpServer(): McpServer {
       maxPages: z.number().optional().describe("Service pages to sample when gathering (default: 8)")
     },
     businessFluent.businessProfileHandler
+  );
+
+  // 4c-ter. Business profile sync — one-way, MCP store -> tts-data seo.business_profile.
+  // Nightly job only (ClickUp 14zfmu0z27c); takes no arguments on purpose.
+  registerTool(
+    "business_profile_sync",
+    "Mirror every active, reviewed business profile into tts-data's seo.business_profile, one-way. Scheduled job use only — not a per-site trigger.",
+    {},
+    businessProfileSyncFluent.businessProfileSyncHandler
   );
 
   // 4d. Keyword opportunity mining
